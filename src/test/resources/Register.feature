@@ -25,6 +25,7 @@ Feature: UMPay Registration
   # means waiting out captcha.manual.timeout and then failing.
   #
   # Every run registers a real account on the test environment.
+
   @register @smoke
   Scenario Outline: Successful registration with a new email address
     When I register with an email address using "<row>" of "<excelSheetName>" of "<excelFileName>"
