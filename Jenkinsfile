@@ -21,6 +21,18 @@ pipeline {
 
     agent any
 
+    // These names must match what is configured under Manage Jenkins -> Tools. Without this
+    // block the pipeline inherits only the PATH of the account Jenkins runs as - normally
+    // LocalSystem on Windows, which has neither Maven nor a developer's JDK - and the build
+    // dies on "mvn -v" with a bare exit code 1.
+    //
+    // The JDK matters as much as Maven here: this machine has Java 24 on the PATH and the
+    // project targets 17, and Jenkins itself will not run on 24.
+    tools {
+        jdk 'jdk-17'
+        maven 'maven-3.9.9'
+    }
+
     parameters {
         string(
             name: 'TAGS',
@@ -80,11 +92,27 @@ pipeline {
             steps {
                 // Fails early and legibly if the agent is missing something, rather than
                 // halfway through a suite that has already registered an account.
+                //
+                // Each tool is checked on its own so the log names the one that is missing.
+                // Chained with && they failed as a single "exit code 1", which says nothing
+                // about which of the three was absent.
                 script {
-                    if (isUnix()) {
-                        sh 'java -version && mvn -v && python3 --version'
-                    } else {
-                        bat 'java -version && mvn -v && python --version'
+                    def checks = isUnix()
+                            ? ['java -version', 'mvn -v', 'python3 --version']
+                            : ['java -version', 'mvn -v', 'python --version']
+
+                    for (check in checks) {
+                        int code = isUnix()
+                                ? sh(script: check, returnStatus: true)
+                                : bat(script: check, returnStatus: true)
+
+                        if (code != 0) {
+                            error("This agent cannot run '${check}' (exit ${code}). Maven and "
+                                + "the JDK come from the tools block, so check their names "
+                                + "match Manage Jenkins -> Tools. Python has to be on the "
+                                + "system PATH, not just your user PATH, because the Jenkins "
+                                + "service does not run as you.")
+                        }
                     }
                 }
             }
