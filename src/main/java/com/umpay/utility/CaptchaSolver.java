@@ -201,7 +201,22 @@ public class CaptchaSolver {
 		return lines.length == 0 ? "" : lines[0];
 	}
 
+	/**
+	 * A captcha setting, from the command line first and the config file second.
+	 *
+	 * The command line matters for CI. config.properties names an absolute path to the
+	 * Python that runs the OCR, which is right for the machine it was written on and wrong
+	 * for every build agent. Without an override a job would have to edit a committed file
+	 * to run at all, so -Dcaptcha.ocr.python=... wins over the file the same way
+	 * -Dheadless=true already does.
+	 */
 	private String get(String key, String fallback) {
+
+		String override = System.getProperty(key);
+
+		if (override != null && !override.isBlank()) {
+			return override.trim();
+		}
 
 		String value = config.getProperty(key);
 		return (value == null || value.isBlank()) ? fallback : value.trim();
