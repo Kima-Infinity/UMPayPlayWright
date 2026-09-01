@@ -89,3 +89,53 @@ load timeout at all, so a slow login page simply took as long as it took. One wi
 scenario failed in its Before hook with every step skipped. Now ninety seconds.
 
 **`findElements` was riding on the same implicit wait.** See `Wait.all(...)` above.
+
+## Running it from Jenkins
+
+`Jenkinsfile` in this repository defines the job, so create a **Pipeline** job with
+*Definition: Pipeline script from SCM*, pointing at this repository. Nothing else needs
+configuring in the UI.
+
+It runs two ways:
+
+- **On demand** - *Build with Parameters*, where `TAGS` chooses what to run.
+- **On a schedule** - `H 2 * * *`, nightly.
+
+### The schedule deliberately does not run everything
+
+Some scenarios spend real things on the test environment: Deposit, Withdraw, Convert and
+GlobalTransfer move real money between wallets, Register creates a real account on every
+run, and the reset scenarios are rate limited by an endpoint whose block escalates from a
+minute to an hour if pushed. A suite that does all of that unattended every night is a
+standing cost and a way to trip the rate limiter for everyone.
+
+So the nightly build runs `@login or @transfer` - the areas that read, open forms and assert
+without sending anything. Spend the rest on purpose: *Build with Parameters*, and set `TAGS`
+to empty for everything, or to `@reset` or `@register` for one area.
+
+`not @manual` is always appended, whatever `TAGS` says. That matters: the runner's own
+filter is replaced by a `-D` tag expression, and `@manual` is what keeps the two scenarios
+that deliberately lock the shared account out of an unattended run.
+
+### What the agent needs
+
+| Needs | Why |
+|---|---|
+| JDK 17 and Maven | the build |
+| Python 3 on the PATH | the captcha OCR. `-Dcaptcha.ocr.python` overrides the absolute path in `config.properties`, which is right for a developer machine and wrong for an agent |
+| A `umpay-mail-password` Secret text credential | reading the registration code over IMAP, and emailing the report. `Config/secrets.properties` is not in this repository, so the job supplies it as `UMPAY_MAIL_PASSWORD` |
+| A `github-umpay` credential | cloning, if the repository is private |
+| Roughly 200MB of disk for the browsers | Playwright downloads them on first use, cached under `PLAYWRIGHT_BROWSERS_PATH` so it happens once per agent rather than once per build |
+
+No browser needs installing and there is no chromedriver to keep in step with Chrome -
+Playwright manages both.
+
+### Reading a result
+
+The job publishes `target/cucumber.xml` as JUnit results, so Jenkins shows a test trend and
+marks a build with failing scenarios **unstable** rather than **failed**. A **failed** build
+is usually the agent rather than the application - missing Maven, missing Python, or a
+missing credential.
+
+Ten scenarios are expected to fail today, and they are listed under *Where it stands* above.
+Check a new failure against that list before treating it as a regression.
