@@ -128,7 +128,7 @@ that deliberately lock the shared account out of an unattended run.
 
 | Needs | Why |
 |---|---|
-| JDK 17 and Maven, configured under *Manage Jenkins -> Tools* as `jdk-17` and `maven-3.9.9` | the build. The pipeline's `tools` block refers to them **by those names** - rename them there and the build fails with "No tool named ... found". Without the block, Jenkins inherits only the PATH of the account it runs as, which on Windows is normally LocalSystem and has no Maven |
+| A JDK and Maven, configured under *Manage Jenkins -> Tools* as `jdk-21` and `maven-3.9.9` | the build. The pipeline's `tools` block refers to them **by those names** - rename them there and the build fails with "No tool named ... found". Without the block, Jenkins inherits only the PATH of the account it runs as, which on Windows is normally LocalSystem and has no Maven |
 | Python 3 on the PATH | the captcha OCR. `-Dcaptcha.ocr.python` overrides the absolute path in `config.properties`, which is right for a developer machine and wrong for an agent |
 | A `umpay-mail-password` Secret text credential | reading the registration code over IMAP, and emailing the report. `Config/secrets.properties` is not in this repository, so the job supplies it as `UMPAY_MAIL_PASSWORD` |
 | A `github-umpay` credential | cloning, if the repository is private |

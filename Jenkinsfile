@@ -26,10 +26,11 @@ pipeline {
     // LocalSystem on Windows, which has neither Maven nor a developer's JDK - and the build
     // dies on "mvn -v" with a bare exit code 1.
     //
-    // The JDK matters as much as Maven here: this machine has Java 24 on the PATH and the
-    // project targets 17, and Jenkins itself will not run on 24.
+    // The JDK matters as much as Maven here: this machine has Java 24 on the PATH, which
+    // Jenkins itself will not run on. Building on 21 is fine - the pom sets
+    // maven.compiler.release=17, so the bytecode targets 17 whichever JDK compiles it.
     tools {
-        jdk 'jdk-17'
+        jdk 'jdk-21'
         maven 'maven-3.9.9'
     }
 
