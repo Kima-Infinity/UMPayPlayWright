@@ -158,6 +158,12 @@ public class BaseClass {
             config = new ConfigDataProvider();
         }
 
+        if (!config.isMailEnabled()) {
+            System.out.println("Report email is switched off (mail.enabled=false). The report"
+                    + " is still written to " + BaseClass.reportPath);
+            return;
+        }
+
         String reportPath = BaseClass.reportPath;
         String screenshotPath = System.getProperty("last.screenshot.path");
         

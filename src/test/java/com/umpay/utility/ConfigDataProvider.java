@@ -76,6 +76,27 @@ public class ConfigDataProvider {
         return Integer.parseInt(timeout.trim());
     }
 
+    /**
+     * Whether to email the report at the end of a run. Defaults to true, so nothing changes
+     * for a developer.
+     *
+     * CI wants it off: Jenkins archives the report itself, and the SMTP round trip is one
+     * more thing that can time out and fill a build log with a stack trace about a mail
+     * server when the tests are what matters. Override with -Dmail.enabled=false.
+     */
+    public boolean isMailEnabled() {
+
+        String override = System.getProperty("mail.enabled");
+
+        if (override != null && !override.isBlank()) {
+            return Boolean.parseBoolean(override.trim());
+        }
+
+        String configured = pro.getProperty("mail.enabled");
+
+        return configured == null || configured.isBlank() || Boolean.parseBoolean(configured.trim());
+    }
+
     public String getMailHost() {
         return pro.getProperty("mail.smtp.host");
     }

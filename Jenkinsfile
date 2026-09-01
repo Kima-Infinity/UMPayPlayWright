@@ -151,7 +151,18 @@ pipeline {
 
                     // config.properties names the Python that runs the captcha OCR by
                     // absolute path, which is right for a developer machine and wrong here.
+                    // maven.test.failure.ignore keeps Maven's exit code about the BUILD
+                    // rather than about the tests. Without it surefire exits 1 on any failing
+                    // scenario, the stage fails, and Jenkins calls the whole build FAILURE -
+                    // which reads as "the job is broken" when the job worked perfectly and
+                    // three scenarios did not pass. The junit step below reads the results and
+                    // marks the build unstable, so a real problem (a compile error, a missing
+                    // tool) still fails and a test failure no longer pretends to be one.
+                    //
+                    // mail.enabled=false because Jenkins archives the report itself; emailing
+                    // it from inside the build only adds an SMTP round trip that can time out.
                     def goals = "clean test -Dheadless=${params.HEADLESS} " +
+                                "-Dmaven.test.failure.ignore=true -Dmail.enabled=false " +
                                 "-Dcaptcha.ocr.python=${params.PYTHON} ${tagArg}"
 
                     if (isUnix()) {
@@ -183,13 +194,15 @@ pipeline {
         }
 
         unstable {
-            echo 'Some scenarios failed. Known failures are listed in README.md - check ' +
-                 'them off before treating this as a regression.'
+            echo 'Scenarios failed, but the job itself ran fine. Ten failures are expected ' +
+                 'today and are listed under "Where it stands" in README.md - check a new ' +
+                 'one against that list before treating it as a regression.'
         }
 
         failure {
-            echo 'The build failed rather than the tests. Usually the agent: no Maven, no ' +
-                 'Python for the captcha OCR, or the umpay-mail-password credential missing.'
+            echo 'The build failed rather than the tests - Maven did not get as far as a ' +
+                 'result. Usually the agent: a tool name that does not match Manage Jenkins ' +
+                 '-> Tools, or a compile error.'
         }
     }
 }
