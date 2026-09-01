@@ -52,9 +52,13 @@ Screenshots/
 .~lock.*#
 
 ### The captcha OCR tool
-# Captcha/ is 86MB of vendored ddddocr and its ONNX models, and it carries its own .git.
-# Committing it as it stands adds a gitlink rather than the files, so a clone would get an
-# empty folder and every AUTO captcha row would fall back to asking a human. UMPay tracks
-# nothing under Captcha either. Copy the folder across from that project when setting this
-# one up; config.properties points at it with captcha.ocr.script.
-Captcha/
+# Captcha/ is committed so a clone is self-contained: config.properties points at
+# Captcha/ocr.py and every AUTO captcha row depends on it. It carries a vendored ddddocr,
+# whose common.onnx is 51MB - over GitHub's large file warning threshold, though under the
+# 100MB limit that would block a push outright.
+#
+# Its own .git was renamed to .git.disabled so git tracks the files rather than recording a
+# gitlink, which would leave a clone with an empty folder.
+Captcha/**/__pycache__/
+Captcha/.git.disabled/
+*.pyc
