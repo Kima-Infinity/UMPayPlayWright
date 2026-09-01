@@ -222,7 +222,22 @@ public class BaseClass {
         System.setProperty("last.screenshot.path", screenshotPath);
 
         if (scenario.isFailed()) {
+
+            // Built before the browser is closed: the calls it made are read off the page,
+            // and a closed page has none to give.
+            String failureReport = FailureReport.of(scenario, driver);
+
+            // To the console, so a terminal run shows it without opening anything.
+            System.out.println(failureReport);
+
+            // To the Cucumber report and the JSON, so CI carries it too.
+            scenario.attach(failureReport.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                    "text/plain", "how to reproduce, and what the API said");
+
             if (logger != null) {
+                logger.fail("<pre>" + failureReport
+                        .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                        + "</pre>");
                 logger.fail("Scenario Failed", MediaEntityBuilder.createScreenCaptureFromPath(screenshotPath).build());
             }
         } else {

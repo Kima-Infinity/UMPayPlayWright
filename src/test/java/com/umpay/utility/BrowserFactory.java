@@ -109,6 +109,10 @@ public class BrowserFactory {
 
 		Page page = context.newPage();
 
+		// Responses are events in Playwright, so the listener has to be in place before the
+		// first navigation or the calls that set the page up are never seen.
+		com.umpay.utility.ApiLog.attach(page);
+
 		page.navigate(url);
 
 		return page;

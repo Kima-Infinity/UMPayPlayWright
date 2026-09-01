@@ -146,3 +146,51 @@ missing credential.
 
 Ten scenarios are expected to fail today, and they are listed under *Where it stands* above.
 Check a new failure against that list before treating it as a regression.
+
+## What a failed scenario tells you
+
+A failure used to say only what did not happen. Every failed scenario now reports how to
+reproduce it and what the server actually answered, to the console, the Cucumber report, the
+Extent HTML and the report email:
+
+    ========================================================================
+    FAILED: A registered phone number signs in
+    ========================================================================
+
+    STEPS TO REPRODUCE
+      Feature: UMPayLogin.feature, line 58
+
+      1. Given I am on the UMPay login page
+      2. When I sign in with the phone number in "2" of "sheet1" of "Login_TestData.xlsx"
+      3. Then I should be signed in
+
+    API CALLS
+      Calls that answered with an error:
+        400 POST https://test.umpay.io/api/login/attempts
+                sent:     phoneCountry=KH&phone=96443322&password=***
+                answered: {"error":true,"status":400,"message":"User not found"}
+
+    RUN THIS ONE AGAIN
+      mvn test -Dcucumber.filter.name="A registered phone number signs in"
+      Add -Dheadless=false to watch it happen.
+
+That last section is the difference between "the sign in did not go through" and knowing the
+number is not registered.
+
+**The API capture is the part Selenium could not do.** Reading request and response bodies
+needed a proxy in front of the browser; Playwright reports every response as it arrives, so
+`ApiLog` records the application's own calls and keeps the body of any that answered 400 or
+worse. Only failed bodies are kept - reading one costs a round trip, and a 200 the test was
+happy with explains nothing.
+
+**Passwords, PINs, tokens, captchas and OTPs are masked.** The first run of this feature
+printed the account password into the console and would have put it in a CI log and an
+inbox. The field is kept and the value replaced, because knowing a password was sent is
+usually the point.
+
+**Steps come from the feature file, not from Cucumber's events.** The obvious approach was a
+`TestStepFinished` listener, which carries each step's text and result. It cannot work here:
+Cucumber emits all of those events *after* the After hooks, so a hook building a report
+always sees an empty list. Reading the source loses which step failed - the exception says
+that anyway - and gains the steps exactly as a person would follow them, with an outline's
+placeholders filled in from the example row that actually ran.
