@@ -42,6 +42,14 @@ pipeline {
                             allows (which moves real money and registers an account).
                             "not @manual" is always added.'''
         )
+        string(
+            name: 'PYTHON',
+            defaultValue: 'python',
+            description: '''Command that runs the captcha OCR. Only @register and @reset
+                            need it. A per-user Python install is not on the PATH of the
+                            account Jenkins runs as, so give the full path to python.exe
+                            if the Tools stage warns that it cannot find it.'''
+        )
         booleanParam(
             name: 'HEADLESS',
             defaultValue: true,
@@ -98,22 +106,34 @@ pipeline {
                 // Chained with && they failed as a single "exit code 1", which says nothing
                 // about which of the three was absent.
                 script {
-                    def checks = isUnix()
-                            ? ['java -version', 'mvn -v', 'python3 --version']
-                            : ['java -version', 'mvn -v', 'python --version']
-
-                    for (check in checks) {
+                    // Java and Maven are required: nothing runs without them.
+                    for (check in ['java -version', 'mvn -v']) {
                         int code = isUnix()
                                 ? sh(script: check, returnStatus: true)
                                 : bat(script: check, returnStatus: true)
 
                         if (code != 0) {
-                            error("This agent cannot run '${check}' (exit ${code}). Maven and "
-                                + "the JDK come from the tools block, so check their names "
-                                + "match Manage Jenkins -> Tools. Python has to be on the "
-                                + "system PATH, not just your user PATH, because the Jenkins "
-                                + "service does not run as you.")
+                            error("This agent cannot run '${check}' (exit ${code}). Both come "
+                                + "from the tools block, so check their names match what is "
+                                + "configured under Manage Jenkins -> Tools.")
                         }
+                    }
+
+                    // Python is not. It runs the captcha OCR, which only @register and
+                    // @reset ever reach - the nightly tags never touch it. Failing the build
+                    // over a tool this run may not use would stop a suite that would
+                    // otherwise have passed, so this warns and carries on.
+                    int python = isUnix()
+                            ? sh(script: "${params.PYTHON} --version", returnStatus: true)
+                            : bat(script: "${params.PYTHON} --version", returnStatus: true)
+
+                    if (python != 0) {
+                        unstable("Cannot run '${params.PYTHON}' on this agent, so the captcha "
+                            + "OCR is unavailable. Harmless unless this build runs @register "
+                            + "or @reset, which would then wait three minutes per captcha for "
+                            + "a person who is not there. Fix by installing Python for all "
+                            + "users, or set the PYTHON parameter to the full path of "
+                            + "python.exe.")
                     }
                 }
             }
@@ -131,10 +151,8 @@ pipeline {
 
                     // config.properties names the Python that runs the captcha OCR by
                     // absolute path, which is right for a developer machine and wrong here.
-                    def python = isUnix() ? 'python3' : 'python'
-
                     def goals = "clean test -Dheadless=${params.HEADLESS} " +
-                                "-Dcaptcha.ocr.python=${python} ${tagArg}"
+                                "-Dcaptcha.ocr.python=${params.PYTHON} ${tagArg}"
 
                     if (isUnix()) {
                         sh "mvn ${goals}"

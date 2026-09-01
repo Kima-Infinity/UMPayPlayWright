@@ -129,7 +129,7 @@ that deliberately lock the shared account out of an unattended run.
 | Needs | Why |
 |---|---|
 | A JDK and Maven, configured under *Manage Jenkins -> Tools* as `jdk-21` and `maven-3.9.9` | the build. The pipeline's `tools` block refers to them **by those names** - rename them there and the build fails with "No tool named ... found". Without the block, Jenkins inherits only the PATH of the account it runs as, which on Windows is normally LocalSystem and has no Maven |
-| Python 3 on the PATH | the captcha OCR. `-Dcaptcha.ocr.python` overrides the absolute path in `config.properties`, which is right for a developer machine and wrong for an agent |
+| Python 3, **only for `@register` and `@reset`** | the captcha OCR. A missing Python makes the build unstable with a warning rather than failing it, because the nightly tags never reach a captcha. A per-user Python install is invisible to the account Jenkins runs as: either install Python for all users, or set the `PYTHON` parameter to the full path of `python.exe` |
 | A `umpay-mail-password` Secret text credential | reading the registration code over IMAP, and emailing the report. `Config/secrets.properties` is not in this repository, so the job supplies it as `UMPAY_MAIL_PASSWORD` |
 | A `github-umpay` credential | cloning, if the repository is private |
 | Roughly 200MB of disk for the browsers | Playwright downloads them on first use, cached under `PLAYWRIGHT_BROWSERS_PATH` so it happens once per agent rather than once per build |
