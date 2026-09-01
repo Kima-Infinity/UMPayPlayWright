@@ -96,6 +96,13 @@ scenario failed in its Before hook with every step skipped. Now ninety seconds.
 *Definition: Pipeline script from SCM*, pointing at this repository. Nothing else needs
 configuring in the UI.
 
+Set **Branch Specifier** to `*/main`. Jenkins defaults that field to `*/master`, which this
+repository does not have, and the failure it gives - "couldn't find remote ref
+refs/heads/master" - does not mention the field it came from.
+
+The pipeline uses `checkout scm`, so the branch, the URL and the credentials come from the
+job's own SCM configuration and are set in exactly one place.
+
 It runs two ways:
 
 - **On demand** - *Build with Parameters*, where `TAGS` chooses what to run.

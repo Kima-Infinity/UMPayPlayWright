@@ -34,11 +34,6 @@ pipeline {
             defaultValue: true,
             description: 'Run without a visible browser window. Agents normally have no display.'
         )
-        string(
-            name: 'BRANCH',
-            defaultValue: 'main',
-            description: 'Branch to build.'
-        )
     }
 
     triggers {
@@ -69,14 +64,15 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: "*/${params.BRANCH}"]],
-                    userRemoteConfigs: [[
-                        url: 'https://github.com/Kima-Infinity/UMPayPlayWright.git',
-                        credentialsId: 'github-umpay'
-                    ]]
-                ])
+                // checkout scm rather than naming the repository again: it takes the branch,
+                // the URL and the credentials from the job's own SCM configuration, and
+                // checks out the very revision this Jenkinsfile was read from.
+                //
+                // Spelling it out a second time here meant the branch was configured in two
+                // places, and the job's copy still said master while this one said main -
+                // which is a build failure that says "couldn't find remote ref
+                // refs/heads/master" and tells you nothing about there being two settings.
+                checkout scm
             }
         }
 
