@@ -78,6 +78,9 @@ public class BrowserFactory {
 
 	private static BrowserContext context;
 
+	/** Whether the run has already waited with the browser open. Waiting twice helps nobody. */
+	private static boolean held;
+
 	static {
 		/*
 		 * A last line of defence, not the usual route.
@@ -261,6 +264,12 @@ public class BrowserFactory {
 	 */
 	public static synchronized void quitBrowser(Page page) {
 
+		// Closing the tab and its profile would leave a maximised window showing nothing,
+		// which is not what anybody asking to keep the browser open wanted to look at.
+		if (keepOpen()) {
+			return;
+		}
+
 		if (page != null && !page.isClosed()) {
 			page.close();
 		}
@@ -271,6 +280,80 @@ public class BrowserFactory {
 	}
 
 	/**
+	 * Whether the browser should be left standing when the run ends.
+	 *
+	 * For looking at the screen a run finished on, which is otherwise gone the instant the
+	 * last scenario does. Off unless asked for with -Dbrowser.keepOpen=true, because a run
+	 * that does not close its browser leaks one and they accumulate.
+	 *
+	 * It holds the shutdown hook back too. The hook is there so an interrupted run does not
+	 * strand a browser, but a browser deliberately left open is not stranded, and a hook
+	 * that closed it anyway would make the flag useless. Headless is exempt: there is no
+	 * window to look at, so keeping one would leak a process for nobody's benefit.
+	 */
+	public static boolean keepOpen() {
+
+		return !isHeadless() && Boolean.parseBoolean(System.getProperty("browser.keepOpen", "false"));
+
+	}
+
+	/**
+	 * Holds the run open so the browser stays on screen.
+	 *
+	 * Not closing the browser is not enough to keep it. Playwright's Chromium is a child of
+	 * the driver process, which goes down with this JVM, and the browser goes with it - so
+	 * a run that merely skipped close() still left an empty desktop, which is what this was
+	 * asked to avoid. The only way to keep the window is to keep the process, so the run
+	 * waits here.
+	 *
+	 * It waits for Enter, and gives up after {@code -Dbrowser.keepOpen.seconds} (five
+	 * minutes by default) so a run started and walked away from still ends. Under Surefire
+	 * the forked JVM often has no console attached and the read returns end of input at
+	 * once; the timeout is what carries the wait in that case, which is why there is one
+	 * rather than an unbounded block.
+	 */
+	private static void holdBrowserOpen() {
+
+		// shutdown is called more than once by design - a Cucumber hook, TestNG's
+		// @AfterSuite, and the JVM shutdown hook all reach it, and it is written to be safe
+		// twice. Waiting is not safe twice: the second caller would hold an already closed
+		// browser open for another five minutes, and the JVM shutdown hook is one of them.
+		if (held) {
+			return;
+		}
+
+		held = true;
+
+		int seconds = Integer.getInteger("browser.keepOpen.seconds", 300);
+
+		System.out.println();
+		System.out.println("The browser is being left open (-Dbrowser.keepOpen=true).");
+		System.out.println("Press Enter to close it, or it closes on its own in "
+				+ seconds + " seconds.");
+
+		long deadline = System.currentTimeMillis() + (seconds * 1000L);
+
+		try {
+			while (System.currentTimeMillis() < deadline) {
+
+				if (System.in.available() > 0) {
+					System.in.read();
+					System.out.println("Closing the browser.");
+					break;
+				}
+
+				Thread.sleep(500);
+			}
+		} catch (Exception interrupted) {
+			Thread.currentThread().interrupt();
+		}
+
+		System.out.println("Done waiting. Closing the browser now.");
+
+		closeEverything();
+	}
+
+	/**
 	 * Closes everything still open: any stray contexts, the browser, the connection.
 	 *
 	 * Called once at the end of a run, and again by the shutdown hook if the run never got
@@ -278,6 +361,22 @@ public class BrowserFactory {
 	 * ignores a null.
 	 */
 	public static synchronized void shutdown() {
+
+		if (keepOpen()) {
+			holdBrowserOpen();
+			return;
+		}
+
+		closeEverything();
+	}
+
+	/**
+	 * Closes the contexts, the browser and the connection.
+	 *
+	 * Separate from {@link #shutdown} so the keep-open path can call it once it has
+	 * finished waiting, without going back through the guard that sent it there.
+	 */
+	private static synchronized void closeEverything() {
 
 		if (!OPEN_CONTEXTS.isEmpty()) {
 			System.out.println("Closing " + OPEN_CONTEXTS.size()
