@@ -41,6 +41,42 @@ public class BaseClass {
 
     public static String reportPath;
 
+    /**
+     * What the run came to, counted as it went.
+     *
+     * Counted here rather than read back out of the report, because the tear downs already
+     * know the answer for every scenario and every test as it finishes, and the report is
+     * an HTML file that would have to be parsed to be asked.
+     */
+    private static int passed;
+
+    private static int failed;
+
+    /** PASSED only when nothing failed. One failure is a failed run. */
+    public static String outcome() {
+
+        return failed == 0 ? "PASSED" : "FAILED";
+
+    }
+
+    /** "3 passed, 1 failed", for a subject line and the top of the body. */
+    public static String tally() {
+
+        return passed + " passed, " + failed + " failed";
+
+    }
+
+    /** Records how one scenario or test ended. */
+    public static void record(boolean testFailed) {
+
+        if (testFailed) {
+            failed++;
+        } else {
+            passed++;
+        }
+    }
+
+
     @BeforeSuite
     public void setUpSuite(){
 
@@ -85,6 +121,13 @@ public class BaseClass {
         Reporter.log("Test is about to end.",true);
 
         String screenshotPath = null;
+
+        // The Cucumber runner's own scenarios arrive here as one TestNG test each and are
+        // already counted in the After hook, so only the standalone tests are added.
+        if (!result.getTestClass().getName().endsWith("TestRunner")) {
+            record(result.getStatus() == ITestResult.FAILURE);
+        }
+
         if(result.getStatus() == ITestResult.FAILURE){
             screenshotPath = Helper.captureScreenShot(driver);
 
@@ -180,8 +223,9 @@ public class BaseClass {
             attachments.add(screenshotPath);
         }
 
-        String body = "<h3>Test Automation Report</h3>" +
-                      "<p>Please find the attached test execution report.</p>";
+        String body = "<h3>UMPay Test Automation Report</h3>"
+                + "<p><b>" + outcome() + "</b> &mdash; " + tally() + ".</p>"
+                + "<p>Please find the attached test execution report.</p>";
         if (screenshotPath != null && !screenshotPath.isEmpty()) {
             body += "<p><b>Last Screenshot Captured:</b><br><img src='cid:screenshot' width='600'/></p>";
         }
@@ -194,7 +238,8 @@ public class BaseClass {
                 config.getMailFrom(),
                 config.getMailPassword(),
                 config.getMailTo(),
-                "Test Automation Report - " + Helper.getCurrentDateTime(),
+                "UMPay Test Automation Report - " + outcome() + " - " + tally()
+                        + " - " + Helper.getCurrentDateTime(),
                 body,
                 attachments
         );
@@ -243,6 +288,9 @@ public class BaseClass {
 
     @After
     public void cucumberTearDown(Scenario scenario) {
+
+        record(scenario.isFailed());
+
         String screenshotPath = Helper.captureScreenShot(driver);
         System.setProperty("last.screenshot.path", screenshotPath);
 

@@ -26,7 +26,7 @@ Feature: UMPay Registration
   #
   # Every run registers a real account on the test environment.
 
-  @register @smoke
+  @register @smoke @email
   Scenario Outline: Successful registration with a new email address
     When I register with an email address using "<row>" of "<excelSheetName>" of "<excelFileName>"
     And I enter the verification code sent to the email address
@@ -45,7 +45,7 @@ Feature: UMPay Registration
   # The code is sent by SMS and nothing in the suite can read one, where the email flow
   # reads its code out of the mailbox over IMAP. Reaching the step the application only
   # shows once it has accepted the form and sent a code is what this can honestly verify.
-  @register
+  @register @phone
   Scenario Outline: Successful registration with a phone number
     When I register with a phone number using "<row>" of "<excelSheetName>" of "<excelFileName>"
     Then the registration should reach the phone verification step
@@ -54,7 +54,7 @@ Feature: UMPay Registration
       | excelFileName          | excelSheetName | row |
       | Register_TestData.xlsx | sheet1         | 5   |
 
-  @register @negative
+  @register @negative @email
   Scenario Outline: Registration is rejected for an email address that is already in use
     When I register with an email address using "<row>" of "<excelSheetName>" of "<excelFileName>"
     Then the registration should be rejected with the message in "<row>" of "<excelSheetName>" of "<excelFileName>"
@@ -62,6 +62,15 @@ Feature: UMPay Registration
     Examples:
       | excelFileName          | excelSheetName | row |
       | Register_TestData.xlsx | sheet1         | 2   |
+
+  @register @negative @phone
+  Scenario Outline: Registration is rejected for phone number that is already in use
+    When I register with a phone number using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    Then the registration should be rejected with the message in "<row>" of "<excelSheetName>" of "<excelFileName>"
+
+    Examples:
+      | excelFileName          | excelSheetName | row |
+      | Register_TestData.xlsx | sheet1         | 6   |
 
   @register @negative
   Scenario Outline: Registration is rejected when the captcha code is wrong
