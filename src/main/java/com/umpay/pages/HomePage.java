@@ -83,6 +83,32 @@ public class HomePage {
 	/** "Total in USD:" - the heading of the balance card behind the prompt. */
 		private final Locator totalLabel;
 
+	/** The UnionPay card on the balance panel, and the way into the UnionPay flow. */
+		private final Locator unionPayButton;
+
+	/** "Total Blocked Amount: ..." - the held funds, beneath the total. */
+		private final Locator totalBlockedAmount;
+
+	/** The support button pinned to the bottom corner of every screen. */
+		private final Locator customerServiceButton;
+
+	/** The product name beside the logo in the sidebar. */
+		private final Locator brandHeading;
+
+	/**
+	 * One per wallet, each holding that wallet's currency, balances and its own
+	 * Main Wallet or Set as Main button.
+	 *
+	 * Matched on the class as a whole word rather than on the exact class attribute.
+	 * The exact form this replaces - div[@class='py-1.5'] - stops matching the moment
+	 * anybody adds a second class to that div, which in a Tailwind codebase is a matter
+	 * of time rather than of chance.
+	 */
+		private final Locator walletCards;
+
+	/** The badge naming whichever wallet is currently the main one. */
+		private final Locator mainWalletBadge;
+
 
 
     public HomePage(Page ldriver) {
@@ -107,6 +133,13 @@ public class HomePage {
 		this.skipTwoFactorButton = page.locator("xpath=//button[normalize-space()='Skip']");
 		this.setupTwoFactorButton = page.locator("xpath=//button[contains(normalize-space(),'Setup 2-factor authentication')]");
 		this.totalLabel = page.locator("xpath=//*[contains(text(),'Total in')]");
+		this.unionPayButton = page.locator("button:has(img[alt='unionpay'])");
+		this.totalBlockedAmount = page.locator("xpath=//p[contains(text(),'Total Blocked Amount')]");
+		this.customerServiceButton = page.locator("button:has(img[src*='customer_service'])");
+		this.brandHeading = page.locator("xpath=//aside//h2");
+		this.walletCards = page.locator(
+				"xpath=//div[contains(concat(' ', normalize-space(@class), ' '), ' py-1.5 ')]");
+		this.mainWalletBadge = page.locator("xpath=//button[normalize-space()='Main Wallet']");
 	}
 
 	private void clickWhenReady(Locator element, String elementName) {
@@ -322,7 +355,7 @@ public class HomePage {
 
 		List<String> wallets = new ArrayList<>();
 
-		for (Locator row : Wait.all(page.locator("xpath=//div[@class='py-1.5']"))) {
+		for (Locator row : Wait.all(walletCards)) {
 
 			String text = row.innerText().replace("\n", " ").replaceAll("\\s*\\|\\s*", " | ").trim();
 
@@ -375,6 +408,168 @@ public class HomePage {
 		return wallets;
 	}
 
+
+	public void openBills() {
+
+		clickNavigation(billsButton, "Bills");
+
+	}
+
+	public void openInternationalSchoolFees() {
+
+		clickNavigation(internationalSchoolFeeButton, "International School Fees");
+
+	}
+
+	/** Opens the UnionPay card on the balance panel. */
+	public void openUnionPay() {
+
+		clickWhenReady(unionPayButton, "UnionPay card");
+
+	}
+
+	/** Opens the support widget. */
+	public void openCustomerService() {
+
+		clickWhenReady(customerServiceButton, "Customer service button");
+
+	}
+
+	/** Whether support is offered on this screen at all. */
+	public boolean isCustomerServiceOffered() {
+
+		return Wait.appears(customerServiceButton);
+
+	}
+
+	/** The held funds as shown, or an empty string when the line is not on screen. */
+	public String getTotalBlockedAmount() {
+
+		try {
+			totalBlockedAmount.waitFor();
+			return totalBlockedAmount.innerText().replaceAll("\\s+", " ").trim();
+		} catch (Exception notThere) {
+			return "";
+		}
+	}
+
+	/** The product name in the sidebar, or an empty string when it is not on screen. */
+	public String getBrandName() {
+
+		try {
+			brandHeading.waitFor();
+			return brandHeading.innerText().trim();
+		} catch (Exception notThere) {
+			return "";
+		}
+	}
+
+	// --- The wallet list -------------------------------------------------------------
+
+	/** How many wallets the home page is showing. */
+	public int walletCount() {
+
+		return Wait.all(walletCards).size();
+
+	}
+
+	/**
+	 * One wallet's row as shown, or an empty string when the account has no such wallet.
+	 *
+	 * @param currency the three letter code, for instance "HKD"
+	 */
+	public String getWalletRow(String currency) {
+
+		for (String row : getWalletRows()) {
+			if (row.startsWith(currency)) {
+				return row;
+			}
+		}
+
+		return "";
+	}
+
+	/** Whether this account holds a wallet in {@code currency} at all. */
+	public boolean hasWallet(String currency) {
+
+		return !getWalletRow(currency).isEmpty();
+
+	}
+
+	/**
+	 * The currency of whichever wallet is currently the main one, or an empty string if
+	 * no wallet claims the badge.
+	 */
+	public String getMainWalletCurrency() {
+
+		for (String row : getWalletRows()) {
+			if (row.contains("Main Wallet")) {
+				return row.split("[\\s|]+")[0];
+			}
+		}
+
+		return "";
+	}
+
+	/**
+	 * Whether this wallet offers to become the main one.
+	 *
+	 * False both for a wallet that is already main - it shows a badge instead of a button -
+	 * and for a currency the account does not hold, which the caller can tell apart with
+	 * {@link #hasWallet}.
+	 */
+	public boolean canSetAsMain(String currency) {
+
+		return setAsMainButton(currency).count() > 0;
+
+	}
+
+	/**
+	 * Makes {@code currency} the main wallet.
+	 *
+	 * The main wallet is what the transfer, convert and withdraw screens open on, so this
+	 * changes the starting point of those flows for the account. Worth knowing before
+	 * calling it in a suite that shares one account.
+	 */
+	public void setWalletAsMain(String currency) {
+
+		clickWhenReady(setAsMainButton(currency), "Set as Main for " + currency);
+
+	}
+
+	/** Opens a wallet's own screen. */
+	public void openWallet(String currency) {
+
+		clickWhenReady(walletCard(currency), currency + " wallet");
+
+	}
+
+	/** Whether the main wallet badge is showing anywhere in the list. */
+	public boolean isMainWalletMarked() {
+
+		return Wait.appears(mainWalletBadge);
+
+	}
+
+	/**
+	 * One wallet's card.
+	 *
+	 * Private, and it stays private: handing a Locator back to a step definition would let
+	 * the step do anything it liked with the element, which is the coupling the page object
+	 * exists to prevent.
+	 */
+	private Locator walletCard(String currency) {
+
+		return walletCards.filter(new Locator.FilterOptions().setHasText(currency));
+
+	}
+
+	private Locator setAsMainButton(String currency) {
+
+		return walletCard(currency).locator("xpath=.//button[normalize-space()='Set as Main']");
+
+	}
+
 	public void homePage() {
 		try {
 			Thread.sleep(2000);
@@ -398,7 +593,7 @@ public class HomePage {
 
 			clickWhenReady(showMoreButton, "Show More button");
 
-			List<Locator> elements = Wait.all(page.locator("xpath=//div[@class='py-1.5']"));
+			List<Locator> elements = Wait.all(walletCards);
 			for (Locator element : elements) {
 				try {
 					Locator walletCurrency = element.locator("xpath=" + ".//span[1]");

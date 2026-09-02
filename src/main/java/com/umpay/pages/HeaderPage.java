@@ -26,6 +26,15 @@ public class HeaderPage {
 
 		private final Locator profileButton;
 
+	/**
+	 * The hamburger that collapses and expands the left navigation.
+	 *
+	 * By its own class rather than by position. It is the first button in the bar, so an
+	 * index would work today, but the class says what the element is for and the index
+	 * only says where it happens to sit.
+	 */
+		private final Locator sidebarToggle;
+
 
 	public HeaderPage(Page ldriver) {
 
@@ -35,6 +44,7 @@ public class HeaderPage {
 		this.scanQrCodeButton = page.locator("xpath=//*[@id=\"root\"]/div[1]/div/div[2]/div[3]/nav/div/div/div[2]/div/button[1]/div/div/div/div/button[2]");
 		this.notificationButton = page.locator("xpath=//*[@id=\"root\"]/div[1]/div/div[2]/div[3]/nav/div/div/div[2]/div/button[2]");
 		this.profileButton = page.locator("xpath=//*[@id=\"root\"]/div[1]/div/div[2]/div[3]/nav/div/div/div[2]/div/button[4]");
+		this.sidebarToggle = page.locator("button.sidebar-toggle");
 	}
 
 	private void clickPaymentMethod(Locator element, String methodName) {
@@ -77,4 +87,24 @@ public class HeaderPage {
 	}
 
 
+
+	/** Collapses or expands the left navigation, whichever it is not already. */
+	public void toggleSidebar() {
+
+		clickPaymentMethod(sidebarToggle, "Sidebar toggle");
+
+	}
+
+	/**
+	 * Whether the left navigation is showing its entries.
+	 *
+	 * Asked of a navigation entry rather than of the sidebar itself, because collapsing
+	 * narrows the sidebar rather than removing it - the container is present either way and
+	 * only the entries stop being visible.
+	 */
+	public boolean isSidebarExpanded() {
+
+		return page.locator("[id='home']").isVisible();
+
+	}
 }
