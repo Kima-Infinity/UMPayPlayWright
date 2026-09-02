@@ -41,16 +41,20 @@ Feature: UMPay Registration
       | excelFileName          | excelSheetName | row |
       | Register_TestData.xlsx | sheet1         | 1   |
 
-  @register @manual
+  # A phone registration ends at the verification step rather than at a usable account.
+  # The code is sent by SMS and nothing in the suite can read one, where the email flow
+  # reads its code out of the mailbox over IMAP. Reaching the step the application only
+  # shows once it has accepted the form and sent a code is what this can honestly verify.
+  @register
   Scenario Outline: Successful registration with a phone number
     When I register with a phone number using "<row>" of "<excelSheetName>" of "<excelFileName>"
-    Then the registration should be accepted
+    Then the registration should reach the phone verification step
 
     Examples:
       | excelFileName          | excelSheetName | row |
       | Register_TestData.xlsx | sheet1         | 5   |
 
-  @register @negative @manual
+  @register @negative
   Scenario Outline: Registration is rejected for an email address that is already in use
     When I register with an email address using "<row>" of "<excelSheetName>" of "<excelFileName>"
     Then the registration should be rejected with the message in "<row>" of "<excelSheetName>" of "<excelFileName>"

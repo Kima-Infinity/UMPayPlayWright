@@ -12,8 +12,10 @@ import com.umpay.utility.OtpMailReader;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
+import java.util.List;
 import java.util.Base64;
 import java.util.Date;
 
@@ -88,6 +90,15 @@ public class RegisterPage {
 
 		private final Locator toastMessage;
 
+	/**
+	 * The alert the registration form raises when the application refuses.
+	 *
+	 * The message sits in a paragraph inside a bordered block. Anchored on the block,
+	 * because the paragraph's own classes are the same generic ones the rest of the form
+	 * carries, while border-primary-900 appears on this screen only when an alert does.
+	 */
+		private final Locator alertMessage;
+
 
 	/**
 	 * Field level rejections render inline underneath the field as an
@@ -116,6 +127,7 @@ public class RegisterPage {
 		this.termsAndConditionsLink = page.locator("xpath=//a[normalize-space()='Terms and Conditions']");
 		this.loginLink = page.locator("xpath=//a[@href='/login']");
 		this.toastMessage = page.locator("xpath=//div[contains(@class,'Toastify__toast-body')]");
+		this.alertMessage = page.locator("xpath=//div[contains(@class,'border-primary-900')]//p");
 		this.fieldErrorMessage = page.locator("xpath=//em[contains(@class,'text-error-600')]");
 	}
 
@@ -255,6 +267,43 @@ public class RegisterPage {
 	private static final int MIN_CAPTCHA_LENGTH = 4;
 
 	/** The emailed one time code is always six digits. */
+	/** How long the verification step gets to appear after the form is submitted. */
+	private static final int OTP_STEP_SECONDS = 20;
+
+	/**
+	 * Refusals that a fresh captcha will never turn into an acceptance.
+	 *
+	 * Matched in lower case against whatever the application says. Anything not on this
+	 * list is treated as the captcha's fault and retried, which is the right default: OCR
+	 * is expected to misread some images.
+	 *
+	 * The rate limit belongs here for the same reason the others do, even though it is
+	 * temporary where they are permanent: it lasts an hour, and no run waits that long. A
+	 * blocked source spent all ten captcha attempts and then stopped for a person to type
+	 * a code, turning a clear "the endpoint is blocked" into several minutes of apparent
+	 * captcha trouble. Failing in seconds with the reason on the screen is worth more.
+	 */
+	private static final List<String> FINAL_REFUSALS =
+			List.of("user already exists", "already registered", "already in use",
+					"blocked for 1 hour");
+
+	/**
+	 * The last refusal seen on screen, kept because it does not stay there.
+	 *
+	 * The message arrives as a toast and leaves on its own after a few seconds. Every
+	 * caller that wants it arrives after it has gone, so it is written down as it passes
+	 * rather than looked for afterwards.
+	 */
+	private String lastRefusal = "";
+
+	/**
+	 * Where the picture of the last refusal was written.
+	 *
+	 * Kept so the step can put it in the report. A String rather than anything richer,
+	 * because a page object reporting on itself is a page object doing the test's job.
+	 */
+	private String lastRefusalScreenshot = "";
+
 	private static final int OTP_LENGTH = 6;
 
 	/** Codes expire and get mistyped, so allow a few goes before failing the run. */
@@ -445,6 +494,22 @@ public class RegisterPage {
 	}
 
 	/**
+	 * Whether the flow has reached the verification step, giving it time to arrive.
+	 *
+	 * isOtpStepDisplayed above asks whether the field is on screen this instant, which is
+	 * the right question when the answer is expected to be no. This is the opposite case:
+	 * the form has just been submitted and the step is waiting for the application to move
+	 * on, so an instant answer would report "not there" before the page had a chance to
+	 * render it. Under Selenium the implicit wait hid this difference; Playwright answers
+	 * immediately and truthfully, so the waiting has to be asked for.
+	 */
+	public boolean hasReachedOtpStep() {
+
+		return Wait.appears(otpField, OTP_STEP_SECONDS);
+
+	}
+
+	/**
 	 * Asks the backend for a different captcha and waits until the image really
 	 * changed.
 	 *
@@ -571,10 +636,21 @@ public class RegisterPage {
 			captchaField.fill(reading);
 			System.out.println("Captcha entered from OCR: " + reading);
 
+			lastRefusal = "";
+
 			submitRegistration();
 
 			if (captchaAccepted()) {
 				System.out.println("Captcha accepted on attempt " + attempt);
+				return;
+			}
+
+			// The captcha was fine and the application still said no. Nothing about a
+			// fresh image would change that answer, and retrying would spend the rest of
+			// the attempts before stopping for a person who is not there.
+			if (refusedForGood()) {
+				System.out.println("The application refused for good: " + lastRefusal
+						+ ". Not retrying the captcha.");
 				return;
 			}
 
@@ -612,6 +688,16 @@ public class RegisterPage {
 					return true;
 				}
 
+				recordRefusal();
+
+				// A refusal on screen is the answer. The form did not move on, and waiting
+				// out the rest of the deadline only delays what is already decided - which
+				// on this form is the whole deadline, because it raises an alert rather
+				// than the inline field error the check below looks for.
+				if (!lastRefusal.isEmpty()) {
+					return false;
+				}
+
 				if (isShowing(fieldErrorMessage)) {
 					return false;
 				}
@@ -633,6 +719,9 @@ public class RegisterPage {
 	/** How long to let a submitted captcha declare itself accepted or rejected. */
 	private static final long OUTCOME_TIMEOUT_MILLIS = 15000;
 
+	/** How long to look for a message that has probably already gone. */
+	private static final double MESSAGE_TIMEOUT_MILLIS = 2000;
+
 	/** Matches the implicit wait BrowserFactory sets, so it can be put back. */
 	private static final Duration IMPLICIT_WAIT = Duration.ofSeconds(5);
 
@@ -647,6 +736,103 @@ public class RegisterPage {
 	}
 
 	/** Appends the backend's own words to a rejection line, when it left any on screen. */
+	/**
+	 * Writes down a refusal if one is on screen right now.
+	 *
+	 * Called from the outcome poll, so it runs every 250ms for as long as the page is
+	 * being watched - often enough to catch a toast that only lives a few seconds. The
+	 * first message of an attempt wins; a later look finding nothing does not erase it.
+	 */
+	private void recordRefusal() {
+
+		if (!lastRefusal.isEmpty()) {
+			return;
+		}
+
+		// The alert first: it is the one this form actually raises. The other two are kept
+		// because other screens use them and a refusal is worth catching wherever it lands.
+		for (Locator candidate : List.of(alertMessage, fieldErrorMessage, toastMessage)) {
+			try {
+				if (candidate.count() > 0 && candidate.first().isVisible()) {
+
+					String text = candidate.first().innerText().trim();
+
+					if (!text.isEmpty()) {
+						lastRefusal = text;
+						System.out.println("Noted the refusal while it was on screen: " + text);
+						saveRefusalScreenshot();
+						return;
+					}
+				}
+			} catch (Exception gone) {
+				// It left between the check and the read. The next tick will try again.
+			}
+		}
+	}
+
+	/**
+	 * Saves a picture of the page while the refusal is still showing.
+	 *
+	 * This is the only moment worth photographing. The alert clears itself after a few
+	 * seconds, so the screenshot the tear down takes on failure shows an ordinary empty
+	 * form and proves nothing about what the application said.
+	 *
+	 * Best effort: a run that cannot write the file is not a run worth failing, and the
+	 * message itself has already been recorded either way.
+	 */
+	private void saveRefusalScreenshot() {
+
+		String path = System.getProperty("user.dir") + "/Screenshots/"
+				+ getCurrentDateTime() + "refusal.png";
+
+		try {
+			File target = new File(path);
+			target.getParentFile().mkdirs();
+
+			page.screenshot(new Page.ScreenshotOptions().setPath(Paths.get(path)));
+
+			lastRefusalScreenshot = path;
+
+			System.out.println("Refusal captured in: " + path);
+
+		} catch (Exception cannotSave) {
+			System.out.println("Not able to save the refusal screenshot: " + cannotSave.getMessage());
+		}
+	}
+
+	/**
+	 * The picture taken while the last refusal was on screen, or an empty string if there
+	 * was none to take.
+	 */
+	public String getRefusalScreenshot() {
+
+		return lastRefusalScreenshot;
+
+	}
+
+	/** Whether the application has refused for a reason no new captcha will change. */
+	private boolean refusedForGood() {
+
+		String message = lastRefusal.toLowerCase();
+
+		return FINAL_REFUSALS.stream().anyMatch(message::contains);
+
+	}
+
+	/**
+	 * A wait short enough to ask about something that is probably not there.
+	 *
+	 * Playwright's default is thirty seconds, which is right when the answer is expected to
+	 * be yes and far too long when the question is "is anything showing?". These calls are
+	 * the second kind: they run after the outcome is already decided, purely to put a
+	 * message on it.
+	 */
+	private static Locator.WaitForOptions briefly() {
+
+		return new Locator.WaitForOptions().setTimeout(MESSAGE_TIMEOUT_MILLIS);
+
+	}
+
 	private String reason(String prefix) {
 
 		String message = getErrorMessage();
@@ -660,7 +846,7 @@ public class RegisterPage {
 	public String getToastMessage() {
 
 		try {
-			toastMessage.waitFor();
+			toastMessage.waitFor(briefly());
 			String message = toastMessage.innerText();
 			System.out.println("Toast message: " + message);
 			return message;
@@ -677,14 +863,25 @@ public class RegisterPage {
 	 */
 	public String getErrorMessage() {
 
+		// Seen and written down while it was on screen. There is nothing to wait for, and
+		// waiting anyway costs a minute across the two absent elements below.
+		if (!lastRefusal.isEmpty()) {
+			return lastRefusal;
+		}
+
 		try {
-			fieldErrorMessage.waitFor();
+			fieldErrorMessage.waitFor(briefly());
 			String message = fieldErrorMessage.innerText();
 			System.out.println("Inline error message: " + message);
 			return message;
 		} catch (Exception e) {
 			System.out.println("No inline error message displayed, checking for a toast instead");
-			return getToastMessage();
+
+			String toast = getToastMessage();
+
+			// A toast that has already gone still counts. It was there, the poll saw it,
+			// and the caller asking now is not a reason to pretend it never appeared.
+			return toast.isBlank() ? lastRefusal : toast;
 		}
 	}
 

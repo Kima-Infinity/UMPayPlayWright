@@ -8,6 +8,7 @@ import com.umpay.pages.HomePage;
 import com.umpay.pages.RegisterPage;
 import com.umpay.pages.SetupPinPage;
 import com.umpay.pages.TermsAndConditionsPage;
+import com.aventstack.extentreports.MediaEntityBuilder;
 import com.umpay.utility.BaseClass;
 import com.umpay.utility.ExcelDataProvider;
 import com.umpay.utility.Helper;
@@ -271,6 +272,60 @@ public class RegisterStepDefs {
                 + (message.isBlank() ? "" : " with the message: " + message));
     }
 
+    /**
+     * A phone registration is done, as far as this suite can take it, when the application
+     * asks for the code it has just sent.
+     *
+     * It cannot be taken further unattended. The email flow reads its code out of the
+     * mailbox over IMAP; the phone flow sends an SMS, and nothing here can read one. So the
+     * verification step is the end of the road, and this asserts the two things reaching it
+     * actually proves: the form was accepted, and the application moved on to ask for the
+     * code. Anything short of that - a form still on screen, a rejection - fails here.
+     */
+    @Then("the registration should reach the phone verification step")
+    public void registrationShouldReachPhoneVerificationStep() {
+
+        boolean reachedVerification = registerPage.hasReachedOtpStep();
+
+        String message = registerPage.getToastMessage();
+        String url = registerPage.getCurrentUrl();
+
+        System.out.println("Landed on: " + url);
+
+        Assert.assertFalse(registerPage.isRegistrationFormDisplayed(),
+                "Still on the registration form after submitting. Toast: " + message + ", URL: " + url);
+
+        Assert.assertTrue(reachedVerification,
+                "The form was submitted but the application never asked for the code sent to the "
+                        + "phone, so the registration was not accepted. Toast: " + message + ", URL: " + url);
+
+        BaseClass.logger.pass("Registration accepted and the phone verification step was reached. "
+                + "Landed on " + url + (message.isBlank() ? "" : " with the message: " + message));
+    }
+
+    /**
+     * Puts the picture of the alert into the report.
+     *
+     * The report's own screenshot is taken in the tear down, by which time the alert has
+     * cleared and the picture shows an empty form - which proves nothing about why the
+     * scenario passed. This one was taken while the message was on screen.
+     */
+    private void attachRefusalScreenshot() {
+
+        String picture = registerPage.getRefusalScreenshot();
+
+        if (picture.isBlank() || !new java.io.File(picture).exists()) {
+            return;
+        }
+
+        try {
+            BaseClass.logger.info("The refusal as it appeared",
+                    MediaEntityBuilder.createScreenCaptureFromPath(picture).build());
+        } catch (Exception cannotAttach) {
+            System.out.println("Could not attach the refusal screenshot: " + cannotAttach.getMessage());
+        }
+    }
+
     @Then("the registration should be rejected with the message in {string} of {string} of {string}")
     public void registrationShouldBeRejected(String rowNumber, String excelSheetName, String excelFileName) {
 
@@ -285,6 +340,8 @@ public class RegisterStepDefs {
 
         Assert.assertTrue(actualMessage.toLowerCase().contains(expectedMessage.toLowerCase()),
                 "Expected the rejection message to contain '" + expectedMessage + "' but it was '" + actualMessage + "'");
+
+        attachRefusalScreenshot();
 
         BaseClass.logger.pass("Registration rejected with the message: " + actualMessage);
     }
