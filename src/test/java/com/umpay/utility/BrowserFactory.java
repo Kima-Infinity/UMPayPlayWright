@@ -7,6 +7,8 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Starts and stops the browser, the Playwright way.
@@ -62,11 +64,36 @@ public class BrowserFactory {
 	/** How long a page load may take before the run gives up on it. */
 	private static final double NAVIGATION_TIMEOUT_MILLIS = 90_000;
 
+	/**
+	 * Every context handed out and not yet closed.
+	 *
+	 * A scenario closes its own in the After hook, so in an orderly run this is empty by the
+	 * time the JVM ends. It is here for the runs that are not orderly.
+	 */
+	private static final Set<BrowserContext> OPEN_CONTEXTS = ConcurrentHashMap.newKeySet();
+
 	private static Playwright playwright;
 
 	private static Browser browser;
 
 	private static BrowserContext context;
+
+	static {
+		/*
+		 * A last line of defence, not the usual route.
+		 *
+		 * Scenarios close their own context in the After hook and the run calls shutdown at
+		 * the end; that is what should be relied on. This exists for the runs that never
+		 * reach either: a suite stopped with Ctrl+C, a build killed by CI for running long,
+		 * a JVM that exits early. Without it those runs leave their Chromium behind - four
+		 * of them when this suite was interrupted, and the browser processes accumulate
+		 * across attempts until somebody notices and kills them by hand.
+		 *
+		 * A hard kill still cannot be caught. Nothing can be done about that from inside the
+		 * JVM, so it is not attempted.
+		 */
+		Runtime.getRuntime().addShutdownHook(new Thread(BrowserFactory::shutdown, "browser-cleanup"));
+	}
 
 	/**
 	 * Whether the run should start the browser without a visible window.
@@ -218,7 +245,11 @@ public class BrowserFactory {
 			options.setViewportSize(null);
 		}
 
-		return browser.newContext(options);
+		BrowserContext fresh = browser.newContext(options);
+
+		OPEN_CONTEXTS.add(fresh);
+
+		return fresh;
 	}
 
 	/**
@@ -235,13 +266,29 @@ public class BrowserFactory {
 		}
 
 		closeQuietly(context, "browser context");
+		OPEN_CONTEXTS.remove(context);
 		context = null;
 	}
 
-	/** Closes the browser and the Playwright connection. Called once, at the end of a run. */
+	/**
+	 * Closes everything still open: any stray contexts, the browser, the connection.
+	 *
+	 * Called once at the end of a run, and again by the shutdown hook if the run never got
+	 * that far. Safe to call twice - each field is cleared as it goes, and closeQuietly
+	 * ignores a null.
+	 */
 	public static synchronized void shutdown() {
 
-		closeQuietly(context, "browser context");
+		if (!OPEN_CONTEXTS.isEmpty()) {
+			System.out.println("Closing " + OPEN_CONTEXTS.size()
+					+ " browser context(s) still open at shutdown");
+
+			for (BrowserContext stray : Set.copyOf(OPEN_CONTEXTS)) {
+				closeQuietly(stray, "browser context");
+				OPEN_CONTEXTS.remove(stray);
+			}
+		}
+
 		context = null;
 
 		closeQuietly(browser, "browser");
