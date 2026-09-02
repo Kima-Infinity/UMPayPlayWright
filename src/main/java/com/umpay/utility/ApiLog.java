@@ -51,10 +51,12 @@ public final class ApiLog {
 	 * @param method       GET, POST and so on
 	 * @param url          the address called
 	 * @param status       the HTTP status it answered with
+	 * @param code         the application's own error code, when it gives one
 	 * @param requestBody  what was sent, for the calls that send anything
 	 * @param responseBody what came back, kept only when the call went wrong
 	 */
-	public record Call(String method, String url, int status, String requestBody, String responseBody) {
+	public record Call(String method, String url, int status, String code,
+			String requestBody, String responseBody) {
 
 		/** Whether this is a call worth showing first in a failure report. */
 		public boolean failed() {
@@ -66,6 +68,10 @@ public final class ApiLog {
 
 			StringBuilder out = new StringBuilder()
 					.append(status).append(' ').append(method).append(' ').append(url);
+
+			if (code != null && !code.isBlank()) {
+				out.append("\n            code:     ").append(code);
+			}
 
 			if (requestBody != null && !requestBody.isBlank()) {
 				out.append("\n            sent:     ").append(requestBody);
@@ -140,7 +146,26 @@ public final class ApiLog {
 		}
 
 		return new Call(response.request().method(), response.url(), response.status(),
-				requestBody, responseBody);
+				codeIn(responseBody), requestBody, responseBody);
+	}
+
+	/**
+	 * The application's own error code out of a response body, if it names one.
+	 *
+	 * The HTTP status says a request failed; the code says which way. A 400 carrying
+	 * MESSAGE_RATE_LIMIT is a different morning's work from a 400 carrying a validation
+	 * failure, and reading it out of the body by eye is a step nobody should have to take.
+	 */
+	private static String codeIn(String body) {
+
+		if (body == null) {
+			return null;
+		}
+
+		java.util.regex.Matcher named = java.util.regex.Pattern
+				.compile("\"code\"\\s*:\\s*\"([^\"]+)\"").matcher(body);
+
+		return named.find() ? named.group(1) : null;
 	}
 
 	private static void record(Deque<Call> calls, Call call) {

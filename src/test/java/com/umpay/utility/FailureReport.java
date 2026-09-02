@@ -33,6 +33,19 @@ public final class FailureReport {
 	 */
 	public static String of(Scenario scenario, Page page) {
 
+		return of(scenario, page, null);
+
+	}
+
+	/**
+	 * The whole account of a failure, including where the picture of it was saved.
+	 *
+	 * @param scenario       the scenario Cucumber has just finished
+	 * @param page           the tab it was working in, for the calls it made
+	 * @param screenshotPath where the screen was saved, or null if it could not be
+	 */
+	public static String of(Scenario scenario, Page page, String screenshotPath) {
+
 		StringBuilder out = new StringBuilder();
 
 		out.append("========================================================================\n")
@@ -41,9 +54,54 @@ public final class FailureReport {
 
 		out.append(reproduction(scenario)).append('\n');
 		out.append(apiSection(page)).append('\n');
+		out.append(screenshotSection(screenshotPath)).append('\n');
 		out.append(rerun(scenario));
 
 		return out.toString();
+	}
+
+
+	/**
+	 * The account of a failed TestNG test, as opposed to a failed Cucumber scenario.
+	 *
+	 * Both are failed tests and both deserve the same explanation, but a TestNG test has no
+	 * feature file to read its steps from. So the steps become what the test is - its class
+	 * and method - and the rerun line becomes the one that runs it on its own. The API and
+	 * screenshot sections are the same ones the scenarios get, because the questions a
+	 * reader asks do not change with the runner.
+	 *
+	 * @param testClass      the class the failing test lives in
+	 * @param testMethod     the method that failed
+	 * @param page           the tab it was working in, for the calls it made
+	 * @param screenshotPath where the screen was saved, or null if it could not be
+	 */
+	public static String ofTest(String testClass, String testMethod, Page page, String screenshotPath) {
+
+		StringBuilder out = new StringBuilder();
+
+		out.append("========================================================================\n")
+				.append("FAILED: ").append(testClass).append('.').append(testMethod).append('\n')
+				.append("========================================================================\n\n");
+
+		out.append("STEPS TO REPRODUCE\n")
+				.append("  A TestNG test rather than a scenario, so the steps are the test itself:\n")
+				.append("  ").append(testClass).append('.').append(testMethod).append("\n\n");
+
+		out.append(apiSection(page)).append('\n');
+		out.append(screenshotSection(screenshotPath)).append('\n');
+
+		out.append("RUN THIS ONE AGAIN\n")
+				.append("  mvn test -Dtest=").append(shortName(testClass)).append('#').append(testMethod)
+				.append("\n  Add -Dheadless=false to watch it happen.\n");
+
+		return out.toString();
+	}
+
+	private static String shortName(String testClass) {
+
+		int lastDot = testClass.lastIndexOf('.');
+
+		return lastDot < 0 ? testClass : testClass.substring(lastDot + 1);
 	}
 
 	/** The steps of the scenario, as a person would follow them. */
@@ -117,6 +175,22 @@ public final class FailureReport {
 		}
 
 		return out.toString();
+	}
+
+	/**
+	 * Where the picture of the failure was saved.
+	 *
+	 * Named in the text as well as attached, because the text is what reaches a terminal
+	 * and an email, and neither of those can show an image. A path the reader can open is
+	 * the next best thing.
+	 */
+	private static String screenshotSection(String screenshotPath) {
+
+		if (screenshotPath == null || screenshotPath.isBlank()) {
+			return "SCREENSHOT\n  (none was taken)\n";
+		}
+
+		return "SCREENSHOT\n  " + screenshotPath + "\n";
 	}
 
 	/** The command that runs this one scenario again, so the reader does not have to work it out. */

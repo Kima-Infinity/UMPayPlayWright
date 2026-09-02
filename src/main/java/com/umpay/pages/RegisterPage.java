@@ -649,8 +649,12 @@ public class RegisterPage {
 			// fresh image would change that answer, and retrying would spend the rest of
 			// the attempts before stopping for a person who is not there.
 			if (refusedForGood()) {
-				System.out.println("The application refused for good: " + lastRefusal
-						+ ". Not retrying the captcha.");
+				// The application's own messages sometimes end in a full stop and sometimes
+				// do not, so one is added only when it is missing.
+				String refusal = lastRefusal.endsWith(".") ? lastRefusal : lastRefusal + ".";
+
+				System.out.println("The application refused for good: " + refusal
+						+ " Not retrying the captcha.");
 				return;
 			}
 

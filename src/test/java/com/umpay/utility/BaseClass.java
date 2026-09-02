@@ -87,6 +87,19 @@ public class BaseClass {
         String screenshotPath = null;
         if(result.getStatus() == ITestResult.FAILURE){
             screenshotPath = Helper.captureScreenShot(driver);
+
+            // A TestNG test is a failed test too. Cucumber's After hook never sees one, so
+            // without this the only tests in the suite that failed without an explanation
+            // were the ones not written as scenarios.
+            String failureReport = FailureReport.ofTest(
+                    result.getTestClass().getName(), result.getMethod().getMethodName(),
+                    driver, screenshotPath);
+
+            System.out.println(failureReport);
+
+            logger.fail("<pre>" + failureReport
+                    .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                    + "</pre>");
             logger.fail("Test Failed", MediaEntityBuilder.createScreenCaptureFromPath(screenshotPath).build());
         }
         else if(result.getStatus()== ITestResult.SUCCESS){
@@ -127,15 +140,6 @@ public class BaseClass {
      * sendEmailStatic instead, which is the right place: it fixes double sending without
      * caring which hook won.
      */
-    @AfterAll
-    public static void cucumberAfterAll() {
-        // The browser outlives the scenarios now - each one only ends its own context - so
-        // something has to close it. This hook and TestRunner's @AfterSuite both call it
-        // for the same reason they both send the report: neither fires for every way of
-        // starting a run, and shutdown is safe to call twice.
-        BrowserFactory.shutdown();
-        sendEmailStatic();
-    }
 
     /** One report per run, however many hooks reach this. */
     private static final java.util.concurrent.atomic.AtomicBoolean REPORT_SENT =
@@ -216,6 +220,27 @@ public class BaseClass {
         }
     }
 
+    /**
+     * Puts the screenshot into the Cucumber report.
+     *
+     * Best effort. A run that cannot read back the file it just wrote is still a run worth
+     * reporting, and the path is named in the text report either way.
+     */
+    private static void attachScreenshot(Scenario scenario, String screenshotPath) {
+
+        if (screenshotPath == null || screenshotPath.isBlank()) {
+            return;
+        }
+
+        try {
+            byte[] picture = java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(screenshotPath));
+            scenario.attach(picture, "image/png", "the screen when it failed");
+        } catch (Exception cannotAttach) {
+            System.out.println("Could not attach the screenshot to the Cucumber report: "
+                    + cannotAttach.getMessage());
+        }
+    }
+
     @After
     public void cucumberTearDown(Scenario scenario) {
         String screenshotPath = Helper.captureScreenShot(driver);
@@ -225,7 +250,7 @@ public class BaseClass {
 
             // Built before the browser is closed: the calls it made are read off the page,
             // and a closed page has none to give.
-            String failureReport = FailureReport.of(scenario, driver);
+            String failureReport = FailureReport.of(scenario, driver, screenshotPath);
 
             // To the console, so a terminal run shows it without opening anything.
             System.out.println(failureReport);
@@ -233,6 +258,11 @@ public class BaseClass {
             // To the Cucumber report and the JSON, so CI carries it too.
             scenario.attach(failureReport.getBytes(java.nio.charset.StandardCharsets.UTF_8),
                     "text/plain", "how to reproduce, and what the API said");
+
+            // The picture goes into the Cucumber report too. It was reaching the Extent
+            // HTML only, so a CI run reading the JSON - which is the one that matters when
+            // nobody is at a desk - had the whole account of the failure except the screen.
+            attachScreenshot(scenario, screenshotPath);
 
             if (logger != null) {
                 logger.fail("<pre>" + failureReport
