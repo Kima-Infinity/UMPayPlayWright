@@ -41,7 +41,7 @@ Feature: UMPay transfers
   # asserting it means this suite is what notices when the services come back.
 
   Background:
-    Given I log into the UMPay application with valid credentials using "1" of "sheet1" of "Login_TestData.xlsx"
+    Given I log into the UMPay application with valid email credentials using "1" of "sheet1" of "Login_TestData.xlsx"
 
   # ------------------------------------------------------------------
   # What each area offers

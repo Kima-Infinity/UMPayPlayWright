@@ -61,7 +61,7 @@ public class LoginToPageStepDefs {
     /** The captcha picture as it was before the refresh button was pressed. */
     private String captchaBeforeRefresh;
 
-    @Given("I log into the UMPay application with valid credentials using {string} of {string} of {string}")
+    @Given("I log into the UMPay application with valid email credentials using {string} of {string} of {string}")
     public void logIntoApplication(String rowNumber, String excelSheetName, String excelFileName) {
 
         int row = Integer.parseInt(rowNumber);
@@ -145,6 +145,14 @@ public class LoginToPageStepDefs {
     public void signInWithPhoneNumberFrom(String rowNumber, String excelSheetName, String excelFileName) {
 
         int row = Integer.parseInt(rowNumber);
+        excel = new ExcelDataProvider(excelFileName, excelSheetName);
+        loginPage = new LoginPage(BaseClass.driver);
+        homePage = new HomePage(BaseClass.driver);
+        headerPage = new HeaderPage(BaseClass.driver);
+        profilePage = new ProfilePage(BaseClass.driver);
+
+        BaseClass.logger = BaseClass.report.createTest("Login to UMPay");
+
         excel = new ExcelDataProvider(excelFileName, excelSheetName);
 
         String[] parts = excel.getStringData(excelSheetName, row, 1).trim().split("\\s+", 2);

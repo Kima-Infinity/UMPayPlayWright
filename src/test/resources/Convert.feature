@@ -10,7 +10,7 @@ Feature: Convert
 
   @convert @smoke
   Scenario Outline: Money is converted between two wallets
-    Given I log into the UMPay application with valid credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I navigate to the Convert page
     And I convert the amount in "<row>" of "<excelSheetName>" of "<excelFileName>"
     Then the conversion should be confirmed with the message in "<row>" of "<excelSheetName>" of "<excelFileName>"

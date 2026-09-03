@@ -102,6 +102,16 @@ public class ResetPasswordPage {
 
 		private final Locator captchaField;
 
+	/**
+	 * The arrow that leaves the verification step and returns to the form.
+	 *
+	 * Taken as the nearest button before the "Forgot Password" heading, because it carries
+	 * no text, no id and only the generic classes the rest of the form uses. That heading
+	 * appears on this step alone, and the nearest button before it is the arrow rather than
+	 * the language switcher further up the page.
+	 */
+		private final Locator backArrow;
+
 
 	// The same shape the registration form uses, and confirmed against this page.
 		private final Locator captchaImage;
@@ -141,6 +151,8 @@ public class ResetPasswordPage {
 		this.phoneCountryDropdown = page.locator("[name=\'phoneCountry\']");
 		this.phoneField = page.locator("[name=\'phone\']");
 		this.captchaField = page.locator("[name=\'captcha\']");
+		this.backArrow = page.locator(
+				"xpath=//h4[normalize-space()='Forgot Password']/preceding::button[1]");
 		this.captchaImage = page.locator("xpath=//input[@name='captcha']/ancestor::div[contains(@class,'gap-2')][1]//img");
 		this.refreshCaptchaButton = page.locator("xpath=//input[@name='captcha']/ancestor::div[contains(@class,'gap-2')][1]//button");
 		this.nextButton = page.locator("xpath=//button[@type='submit' and normalize-space()='Next']");
@@ -423,9 +435,27 @@ public class ResetPasswordPage {
 		return otpMailReader.isConfigured();
 	}
 
-	/** Leaves the verification step the way a user would, with the browser's back. */
+	/**
+	 * Leaves the verification step the way a user would, by the arrow on the step itself.
+	 *
+	 * It used to call page.goBack, which is the browser's back button, and that does not
+	 * work here: the reset flow never changes its address. The form and the verification
+	 * step are both /forgot-password/email, so there is no history entry between them for
+	 * the browser to go back to, and pressing back leaves the flow altogether. The step
+	 * carries its own arrow beside the "Forgot Password" heading, which is what a user
+	 * would actually press and what does return to the form - both confirmed by hand
+	 * against the live page.
+	 */
 	public void goBack() {
 
+		if (backArrow.count() > 0) {
+			backArrow.first().click();
+			return;
+		}
+
+		// Nothing to press. The browser's back is the wrong instrument here, but it is
+		// better than doing nothing at all and leaving the caller to wonder.
+		System.out.println("The verification step had no back arrow; using the browser's back.");
 		page.goBack();
 	}
 

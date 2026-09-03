@@ -52,7 +52,7 @@ Feature: UMPay end to end journey
     And I should be able to successfully log out
 
     # 2 - Login
-    When I log into the UMPay application with valid credentials using "1" of "sheet1" of "Login_TestData.xlsx"
+    When I log into the UMPay application with valid email credentials using "1" of "sheet1" of "Login_TestData.xlsx"
     Then I check and validate all the homepage contents
 
     # 3 - Deposit

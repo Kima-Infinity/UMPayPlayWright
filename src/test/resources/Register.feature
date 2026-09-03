@@ -91,5 +91,5 @@ Feature: UMPay Registration
       | Register_TestData.xlsx | sheet1         | 3   |
 
   @register
-  Scenario: Existing users can reach the login page from the registration page
+  Scenario: Existing users can navigate to the login page from the registration page
     Then I should be able to go to the login page from the registration page
