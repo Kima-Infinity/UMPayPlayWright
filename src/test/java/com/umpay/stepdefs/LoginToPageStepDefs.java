@@ -71,7 +71,9 @@ public class LoginToPageStepDefs {
         headerPage = new HeaderPage(BaseClass.driver);
         profilePage = new ProfilePage(BaseClass.driver);
 
-        BaseClass.logger = BaseClass.report.createTest("Login to UMPay");
+        if (BaseClass.logger == null) {
+            BaseClass.logger = BaseClass.report.createTest("Login to UMPay");
+        }
 
         loginPage.loginToUMPay(excel.getStringData(excelSheetName, row, 1), excel.getStringData(excelSheetName, row, 2));
 
@@ -114,6 +116,53 @@ public class LoginToPageStepDefs {
     // Reaching the login page in a known state
     // ------------------------------------------------------------------
 
+    /**
+     * Opens the registration page the way the registration steps expect to find it.
+     *
+     * Everything the step it replaces did, not merely the navigation: the report entry a
+     * scenario writes its steps into is created here too. Opening the page without it left
+     * BaseClass.logger null, and the first step that recorded a pass threw on it - a failure
+     * about reporting, in a scenario about registering.
+     */
+    private void openRegistrationPage() {
+
+        com.umpay.pages.RegisterPage registerPage = new com.umpay.pages.RegisterPage(BaseClass.driver);
+
+        registerPage.open(BaseClass.config.getRegisterUrl());
+
+        if (BaseClass.logger == null) {
+            BaseClass.logger = BaseClass.report.createTest("Register a UMPay account");
+        }
+
+        // Waited for rather than asserted the instant the address changes. The form is drawn
+        // after the page loads, and a scenario that opened it straight after another one had
+        // just finished failed here for being early rather than for anything about registering.
+        com.umpay.utility.Wait.until(registerPage::isRegistrationFormDisplayed, 20);
+
+        Assert.assertTrue(registerPage.isRegistrationFormDisplayed(),
+                "Registration form was not displayed. The page is at " + registerPage.getCurrentUrl());
+    }
+
+    /**
+     * The page a scenario starts on, named by the scenario rather than baked into the step.
+     *
+     * The three pages a run can start from without signing in each had a step of their own, and
+     * a scenario that starts on one of them had nothing to put in an Examples table. Naming the
+     * page gives those scenarios something real to be driven by, and delegates to the step that
+     * already knows how to open it.
+     */
+    @Given("I am on the UMPay {string} page")
+    public void openThePage(String page) {
+
+        switch (page.toLowerCase()) {
+            case "login" -> openLoginPage();
+            case "password reset" -> openResetPasswordPage();
+            case "registration" -> openRegistrationPage();
+            default -> Assert.fail("There is no UMPay \"" + page + "\" page to start from."
+                    + " Try login, registration or password reset.");
+        }
+    }
+
     @Given("I am on the UMPay login page")
     public void openLoginPage() {
 
@@ -121,7 +170,9 @@ public class LoginToPageStepDefs {
 
         loginPage.open(BaseClass.config.getUrl());
 
-        BaseClass.logger = BaseClass.report.createTest("UMPay login page");
+        if (BaseClass.logger == null) {
+            BaseClass.logger = BaseClass.report.createTest("UMPay login page");
+        }
 
         Assert.assertTrue(loginPage.isShowing(),
                 "The login form was not shown. Landed on " + loginPage.getCurrentUrl());
@@ -151,7 +202,9 @@ public class LoginToPageStepDefs {
         headerPage = new HeaderPage(BaseClass.driver);
         profilePage = new ProfilePage(BaseClass.driver);
 
-        BaseClass.logger = BaseClass.report.createTest("Login to UMPay");
+        if (BaseClass.logger == null) {
+            BaseClass.logger = BaseClass.report.createTest("Login to UMPay");
+        }
 
         excel = new ExcelDataProvider(excelFileName, excelSheetName);
 
@@ -428,7 +481,9 @@ public class LoginToPageStepDefs {
 
         resetPasswordPage.open(BaseClass.config.getResetPasswordUrl());
 
-        BaseClass.logger = BaseClass.report.createTest("UMPay password reset");
+        if (BaseClass.logger == null) {
+            BaseClass.logger = BaseClass.report.createTest("UMPay password reset");
+        }
 
         Assert.assertTrue(resetPasswordPage.isShowing(),
                 "The reset form was not shown. Landed on " + resetPasswordPage.getCurrentUrl());

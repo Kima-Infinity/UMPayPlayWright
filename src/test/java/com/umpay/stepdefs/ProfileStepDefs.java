@@ -1,0 +1,194 @@
+package com.umpay.stepdefs;
+
+import com.umpay.pages.HomePage;
+import com.umpay.pages.ProfileDrawerPage;
+import com.umpay.utility.BaseClass;
+import com.umpay.utility.ExcelDataProvider;
+import io.cucumber.java.en.Then;
+import io.cucumber.java.en.When;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+
+/**
+ * The profile drawer.
+ *
+ * <p>Column layout of TestData/Profile_TestData.xlsx
+ * 0 Scenario | 1 LoginID | 2 Password | 3 ReferralCode | 4 DocumentVerification | 5 AccountStatus
+ */
+public class ProfileStepDefs {
+
+    private static final int REFERRAL_CODE = 3;
+
+    private static final int DOCUMENT_VERIFICATION = 4;
+
+    private static final int ACCOUNT_STATUS = 5;
+
+    private ProfileDrawerPage drawerPage;
+
+    private ExcelDataProvider excel;
+
+    private ProfileDrawerPage drawer() {
+
+        if (drawerPage == null) {
+            drawerPage = new ProfileDrawerPage(BaseClass.driver);
+        }
+
+        return drawerPage;
+    }
+
+    private String fromTheSheet(String rowNumber, String sheetName, String fileName, int column) {
+
+        excel = new ExcelDataProvider(fileName, sheetName);
+
+        return excel.getStringData(sheetName, Integer.parseInt(rowNumber), column);
+    }
+
+    /**
+     * Opens the drawer.
+     *
+     * The two factor prompt is dismissed first because it covers the top bar the drawer opens
+     * from, and a click that lands on it opens nothing while reporting no error at all.
+     */
+    @When("I open the profile drawer")
+    public void openTheProfileDrawer() throws InterruptedException {
+
+        Thread.sleep(3000);
+
+        new HomePage(BaseClass.driver).dismissTwoFactorPromptIfShowing();
+
+        drawer().open();
+
+        assertTrue(drawer().isShowing(), "The profile drawer did not open");
+
+        BaseClass.logger.pass("Opened the profile drawer");
+    }
+
+    @Then("the profile drawer should offer {string}")
+    public void theDrawerShouldOffer(String functions) {
+
+        List<String> offered = drawer().functionsOffered();
+
+        List<String> missing = new ArrayList<>();
+
+        for (String function : functions.split(",")) {
+            if (offered.stream().noneMatch(said -> said.startsWith(function.trim()))) {
+                missing.add(function.trim());
+            }
+        }
+
+        assertTrue(missing.isEmpty(), "The profile drawer does not offer " + missing
+                + ". It offers: " + offered);
+
+        System.out.println("The profile drawer offers " + offered);
+
+        BaseClass.logger.pass("The drawer offers " + offered);
+    }
+
+    /**
+     * What the drawer says about the account, as the sheet records it.
+     *
+     * The referral code is this account's own and belongs in the sheet; a code that changed
+     * would mean the drawer is showing somebody else's, which is worth failing for.
+     */
+    @Then("the profile drawer should show the account details in {string} of {string} of {string}")
+    public void theDrawerShouldShowTheAccountDetails(String row, String sheetName, String fileName) {
+
+        assertEquals(drawer().referralCode(),
+                fromTheSheet(row, sheetName, fileName, REFERRAL_CODE), "Referral code");
+
+        assertEquals(drawer().documentVerification(),
+                fromTheSheet(row, sheetName, fileName, DOCUMENT_VERIFICATION), "Document verification");
+
+        assertTrue(drawer().says(fromTheSheet(row, sheetName, fileName, ACCOUNT_STATUS)).length() > 0,
+                "The drawer does not report the account as "
+                        + fromTheSheet(row, sheetName, fileName, ACCOUNT_STATUS));
+
+        BaseClass.logger.pass("The drawer shows referral code " + drawer().referralCode()
+                + ", documents " + drawer().documentVerification());
+    }
+
+    @When("I open {string} from the profile drawer")
+    public void openFromTheProfileDrawer(String function) {
+
+        drawer().open(function);
+
+        BaseClass.logger.pass("Opened " + function + " from the profile drawer");
+    }
+
+    /**
+     * A function opened something of its own.
+     *
+     * Both the address and the heading, because either alone can mislead: several of these
+     * pages live under /settings and would look alike by address, and a heading can be left
+     * over from the page before while the new one is still loading.
+     */
+    @Then("it should open the {string} page at {string}")
+    public void itShouldOpenThePage(String heading, String address) {
+
+        com.umpay.utility.Wait.until(() -> drawer().getCurrentUrl().contains(address), 15);
+
+        assertTrue(drawer().getCurrentUrl().contains(address),
+                "Expected to land on " + address + " but the page is at " + drawer().getCurrentUrl());
+
+        assertEquals(drawer().headingShown(), heading,
+                "The page at " + drawer().getCurrentUrl() + " does not read " + heading);
+
+        BaseClass.logger.pass(heading + " opened at " + drawer().getCurrentUrl());
+    }
+
+    @When("I ask to log out")
+    public void askToLogOut() {
+
+        drawer().askToLogOut();
+
+        BaseClass.logger.pass("Asked to log out");
+    }
+
+    @Then("the application should ask whether I mean it")
+    public void theApplicationShouldAskWhetherIMeanIt() {
+
+        assertTrue(drawer().asksToConfirmLoggingOut(),
+                "Logout did not ask before signing out. The dialog reads: \""
+                        + drawer().whatTheQuestionSays() + "\" and offers "
+                        + drawer().theQuestionsButtons());
+
+        System.out.println("The logout question offers " + drawer().theQuestionsButtons());
+
+        BaseClass.logger.pass("The application asked before signing out, offering "
+                + drawer().theQuestionsButtons());
+    }
+
+    @When("I answer {string}")
+    public void iAnswer(String answer) {
+
+        drawer().answerTheLogOutQuestion(answer);
+
+        BaseClass.logger.pass("Answered " + answer);
+    }
+
+    @Then("I should still be signed in")
+    public void iShouldStillBeSignedIn() {
+
+        assertFalse(drawer().isSignedOut(),
+                "Cancelling the logout signed the account out anyway");
+
+        BaseClass.logger.pass("Still signed in, as cancelling should leave it");
+    }
+
+    @Then("I should be signed out")
+    public void iShouldBeSignedOut() {
+
+        com.umpay.utility.Wait.until(() -> drawer().isSignedOut(), 20);
+
+        assertTrue(drawer().isSignedOut(),
+                "Confirming the logout left the run signed in. The page is at "
+                        + drawer().getCurrentUrl());
+
+        BaseClass.logger.pass("Signed out");
+    }
+}

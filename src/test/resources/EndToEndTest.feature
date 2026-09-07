@@ -35,11 +35,11 @@ Feature: UMPay end to end journey
   # Run it on its own:  mvn test -Dcucumber.filter.tags="@e2e"
 
   @e2e
-  Scenario: A new account registers, signs in, moves money through every flow and signs out
+  Scenario Outline: A new account registers, signs in, moves money through every flow and signs out
 
     # 1 - Register: captcha read by OCR, the emailed code read over IMAP
     Given I am on the UMPay registration page
-    When I register with an email address using "1" of "sheet1" of "Register_TestData.xlsx"
+    When I register with an email address using "<registerRow>" of "sheet1" of "Register_TestData.xlsx"
     And I enter the verification code sent to the email address
     Then the registration should be accepted
     When I accept the policies shown to a new account
@@ -52,22 +52,26 @@ Feature: UMPay end to end journey
     And I should be able to successfully log out
 
     # 2 - Login
-    When I log into the UMPay application with valid email credentials using "1" of "sheet1" of "Login_TestData.xlsx"
+    When I log into the UMPay application with valid email credentials using "<loginRow>" of "sheet1" of "Login_TestData.xlsx"
     Then I check and validate all the homepage contents
 
     # 3 - Deposit
     When I navigate to Deposit page
-    Then I should be able to initiate a deposit transaction using "1" of "sheet1" of "Deposit_TestData.xlsx"
+    Then I should be able to initiate a deposit transaction using "<depositRow>" of "sheet1" of "Deposit_TestData.xlsx"
 
     # 4 - Withdraw
     When I navigate to Withdraw page
-    Then I should be able to initiate a withdraw transaction using "1" of "sheet1" of "Withdraw_TestData.xlsx"
+    Then I should be able to initiate a withdraw transaction using "<withdrawRow>" of "sheet1" of "Withdraw_TestData.xlsx"
 
     # 5 - Convert
     When I navigate to the Convert page
-    And I convert the amount in "1" of "Sheet1" of "Convert_TestData.xlsx"
-    Then the conversion should be confirmed with the message in "1" of "Sheet1" of "Convert_TestData.xlsx"
+    And I convert the amount in "<convertRow>" of "Sheet1" of "Convert_TestData.xlsx"
+    Then the conversion should be confirmed with the message in "<convertRow>" of "Sheet1" of "Convert_TestData.xlsx"
     And the source wallet balance should have gone down by the converted amount
 
     # 6 - Logout
     Then I should be able to successfully log out
+
+    Examples: the row each flow is driven by
+      | registerRow | loginRow | depositRow | withdrawRow | convertRow |
+      | 1           | 1        | 1          | 1           | 1          |

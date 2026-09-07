@@ -98,6 +98,144 @@ public class UMPayWalletTransferPage {
 	 * what a scenario with a real recipient in its test data needs; no scenario calls it
 	 * today, for want of that recipient.
 	 */
+	/**
+	 * The three ways this form lets a recipient be named: MOBILE, EMAIL and ID.
+	 *
+	 * The form opens on MOBILE and the other two were never covered, though they are separate
+	 * code paths - a different box, a different lookup, and a different answer when nobody holds
+	 * what was typed.
+	 */
+	public void nameTheRecipientBy(String how) {
+
+		// Matched whatever case the markup uses. The tabs read MOBILE, EMAIL and ID on screen and
+		// are not written that way in the page - the capitals are the stylesheet's doing - so a
+		// locator that asked for the rendered wording found nothing at all.
+		String upper = "translate(normalize-space(text()),"
+				+ "'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ')";
+
+		Locator tab = page.locator("xpath=//*[" + upper + "=\"" + how.toUpperCase() + "\"]");
+
+		try {
+			tab.first().waitFor();
+			tab.first().click();
+		} catch (Exception notOffered) {
+			throw new IllegalStateException("The wallet transfer form offers no way to name a"
+					+ " recipient by " + how);
+		}
+
+		settle();
+	}
+
+	/**
+	 * Types whatever identifies the recipient into whichever box the chosen way is showing.
+	 *
+	 * One method for all three, because from the scenario's point of view it is one action -
+	 * saying who is being paid - and which box that lands in is this page's business.
+	 */
+	public void enterRecipient(String identifier) {
+
+		// Whichever box the chosen way is showing, rather than a list of the names it might have.
+		// Naming them was a guess that held for the phone and email boxes and not for the ID one,
+		// and a guess about a name is a locator that quietly matches nothing. What is certain is
+		// that the box for naming a recipient is the only one open before an amount can be
+		// entered: the amount and the remark are locked until somebody is found, and the country
+		// beside a phone number is a picker rather than a box to type in.
+		for (Locator box : com.umpay.utility.Wait.all(page.locator("input"))) {
+
+			try {
+				String name = String.valueOf(box.getAttribute("name"));
+
+				if (name.equals("amount") || name.equals("remark") || name.equals("phoneCountry")) {
+					continue;
+				}
+
+				if (box.isVisible() && box.isEnabled()) {
+
+					box.fill(identifier);
+					settle();
+					return;
+				}
+
+			} catch (Exception notThisOne) {
+				// A box that will not answer is not the one being typed into.
+			}
+		}
+
+		throw new IllegalStateException("The wallet transfer form is showing no box to name a"
+				+ " recipient in");
+	}
+
+	/**
+	 * Names a recipient by mobile, which takes two things rather than one.
+	 *
+	 * The number is asked for beside a country, and the country is not a box to type in - it is a
+	 * list of two hundred entries reading "CAMBODIA (+855)". So the dialling code is looked up in
+	 * it and the rest of the number typed. The sheet holds them together, the way a person would
+	 * write the number down.
+	 */
+	public void nameTheRecipientByMobile(String diallingCode, String number) {
+
+		Locator country = page.locator("[name='phoneCountry']");
+
+		try {
+			country.first().selectOption(new com.microsoft.playwright.options.SelectOption()
+					.setLabel(labelFor(diallingCode)));
+
+		} catch (Exception notASelect) {
+
+			// Not a select after all: open it and choose the row that carries the code.
+			try {
+				country.first().click();
+				settle();
+
+				page.locator("xpath=//*[contains(normalize-space(.),\"(+" + diallingCode + ")\")]")
+						.first().click();
+
+			} catch (Exception cannotChoose) {
+				throw new IllegalStateException("The wallet form would not take +" + diallingCode
+						+ " as the recipient's country");
+			}
+		}
+
+		settle();
+
+		enterRecipient(number);
+	}
+
+	/** The entry in the country list that carries a dialling code, as the list writes it. */
+	private String labelFor(String diallingCode) {
+
+		for (Locator option : com.umpay.utility.Wait.all(page.locator("[name='phoneCountry'] option"))) {
+
+			try {
+				String said = option.innerText().trim();
+
+				if (said.contains("(+" + diallingCode + ")")) {
+					return said;
+				}
+
+			} catch (Exception gone) {
+				// An option that will not answer is not the one being looked for.
+			}
+		}
+
+		throw new IllegalStateException("The country list offers no +" + diallingCode);
+	}
+
+	/** Whether the form has found somebody to pay, which is what unlocks the rest of it. */
+	public boolean hasFoundTheRecipient() {
+
+		return amountFieldIsEnabled();
+	}
+
+	/** Goes on from the amount, which does not send: a summary and a PIN come after it. */
+	public void next() {
+
+		nextButton.first().click();
+
+		settle();
+	}
+
 	public void enterAmount(String amount) {
 
 		type(amountField, amount);

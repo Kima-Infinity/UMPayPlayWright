@@ -1,5 +1,6 @@
 package com.umpay.pages;
 
+import com.umpay.utility.PlatformRefusal;
 import com.umpay.utility.Wait;
 
 import com.microsoft.playwright.Locator;
@@ -517,7 +518,8 @@ public class DepositPage {
 		// A sent deposit ends one of two ways, so both are waited for. Waiting only for the good
 		// one turns a refusal into thirty seconds of silence and then a timeout that says
 		// nothing about why.
-		Wait.until(() -> submittedOrderStatus.isVisible() || !refusalShowing().isEmpty(), 30);
+		Wait.until(() -> submittedOrderStatus.isVisible()
+				|| !PlatformRefusal.showing(page).isEmpty(), 30);
 
 		stopIfRefused(deposit, "confirming");
 
@@ -532,87 +534,14 @@ public class DepositPage {
 	/**
 	 * Stops the deposit if the platform has something to say about it.
 	 *
-	 * The platform can decline at any point and for any combination: a Malaysian ringgit
-	 * deposit through Duitnow was answered "This service not available please try again with
-	 * other methods", and there is nothing about that answer particular to Malaysia, to an
-	 * e-wallet, or to Duitnow. Any currency, any channel and any payment name can be answered
-	 * the same way, so every step of every deposit is checked rather than the one combination
-	 * that happened to show it first.
-	 *
-	 * The message names the combination and the step, so a failure reads as the platform's
-	 * decision about a particular deposit rather than as a broken test.
+	 * Every step of every deposit is checked rather than the one combination that happened to
+	 * show a refusal first: any currency, any channel and any payment name can be answered the
+	 * same way. The reading itself is shared with the other flows, which can all be refused in
+	 * the same words; only the naming of the deposit belongs to this page.
 	 */
 	private void stopIfRefused(String deposit, String afterDoing) {
 
-		String refusal = refusalShowing();
-
-		if (!refusal.isEmpty()) {
-			throw new IllegalStateException("The platform would not take " + deposit
-					+ ", after " + afterDoing + ": " + refusal);
-		}
-	}
-
-	/**
-	 * Whatever a dialog is saying, if one is up. Empty when nothing is.
-	 *
-	 * Several nodes answer to the dialog's id and the outermost is not always the one holding
-	 * the words - taking the first gave "Deposit", the dialog's title and nothing else - so the
-	 * one with most to say is the one worth reporting.
-	 */
-	private String refusalShowing() {
-
-		// A picker is a dialog too, and its rows are not a message. Reading one as a refusal
-		// would stop a perfectly good deposit and quote a list of wallets as the reason.
-		if (aPickerIsOpen()) {
-			return "";
-		}
-
-		String said = "";
-
-		try {
-			for (Locator part : page.locator("xpath=//*[@id='root.dialog']").all()) {
-
-				String text = part.innerText().replaceAll("\\s+", " ").trim();
-
-				if (text.length() > said.length()) {
-					said = text;
-				}
-			}
-		} catch (Exception nothingShowing) {
-			return "";
-		}
-
-		return withoutBoilerplate(said);
-	}
-
-	/**
-	 * The dialog's own words, with the parts it always says taken off the front.
-	 *
-	 * Every one of these dialogs opens with its title and a standing notice about not
-	 * refreshing the page, which pushes the sentence that matters to the end of a long line in
-	 * the failure report. What is left is the platform's actual answer. Anything that does not
-	 * match is left exactly as it was found, so a change to the wording costs nothing worse
-	 * than the longer message this used to print.
-	 */
-	private String withoutBoilerplate(String said) {
-
-		String trimmed = said
-				.replace("Deposit If your operation is still in progress."
-						+ " Avoid refreshing or closing this page.", "")
-				.trim();
-
-		return trimmed.isEmpty() ? said : trimmed;
-	}
-
-	/** Whether an open dialog is one of the form's own pickers rather than a message. */
-	private boolean aPickerIsOpen() {
-
-		try {
-			return page.locator("xpath=//*[@id='root.dialog']/div/div[2]/div/div/div/div/div[2]/div").count() > 0
-					|| page.locator("xpath=//*[@id='root.dialog']/div/div[2]/div/div/div/div/div/div[3]/div").count() > 0;
-		} catch (Exception nothingOpen) {
-			return false;
-		}
+		PlatformRefusal.stopIfRefused(page, deposit, afterDoing);
 	}
 
 	/**

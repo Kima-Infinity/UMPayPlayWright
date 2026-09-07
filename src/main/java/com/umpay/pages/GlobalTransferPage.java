@@ -82,6 +82,55 @@ public class GlobalTransferPage {
 	 * every one of them onto the wrong tile.
 	 */
 
+	/** The routes this area offers, in the order its tiles are drawn. */
+	public static final java.util.List<String> ROUTES = java.util.List.of(
+			"UMPay Transfer to School Fees",
+			"UMPay Transfer to Personal Bank Account",
+			"UnionPay Global",
+			"UMPay Transfer to USDT");
+
+	/** The routes it is offering right now, which is not always the same list. */
+	public java.util.List<String> routesOffered() {
+
+		java.util.List<String> offered = new java.util.ArrayList<>();
+
+		for (String route : ROUTES) {
+			if (offersRoute(route)) {
+				offered.add(route);
+			}
+		}
+
+		return offered;
+	}
+
+	/** Whether the application is refusing to open a route, in a dialog of its own. */
+	public boolean showsUnavailableWarning() {
+
+		return isPresent(page.locator("xpath=//*[normalize-space(text())='Warning']"));
+	}
+
+	/** Whether that dialog says what it should. */
+	public boolean warningSays(String message) {
+
+		return isPresent(page.locator("xpath=//*[contains(normalize-space(.),\"" + message + "\")]"));
+	}
+
+	/** Clears the warning, so the next route is not clicked through a dialog. */
+	public void dismissWarning() {
+
+		try {
+			Locator ok = page.locator("xpath=//button[normalize-space()='Ok']");
+
+			ok.first().waitFor();
+			ok.first().click();
+
+			Thread.sleep(1000);
+
+		} catch (Exception noDialog) {
+			System.out.println("There was no warning dialog to dismiss.");
+		}
+	}
+
 	/** True once this area's route list is on screen. */
 	public boolean isShowing() {
 

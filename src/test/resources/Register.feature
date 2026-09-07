@@ -9,9 +9,6 @@ Feature: UMPay Registration
   # tagged @manual are ones nobody has yet confirmed run start to finish without a
   # person watching, and the runner leaves them out of the unattended run.
 
-  Background:
-    Given I am on the UMPay registration page
-
   # The full journey from an empty form to a usable account: the captcha is read
   # by OCR, the six digit code is read out of the mailbox over IMAP, the two
   # policies that greet every new account are accepted, the PIN they are then
@@ -26,8 +23,9 @@ Feature: UMPay Registration
   #
   # Every run registers a real account on the test environment.
 
-  @register @smoke @email
+  @register @smoke @email @Register_TC_001
   Scenario Outline: Successful registration with a new email address
+    Given I am on the UMPay "<page>" page
     When I register with an email address using "<row>" of "<excelSheetName>" of "<excelFileName>"
     And I enter the verification code sent to the email address
     Then the registration should be accepted
@@ -38,58 +36,68 @@ Feature: UMPay Registration
     And I should see the account wallets on the home page
 
     Examples:
-      | excelFileName          | excelSheetName | row |
-      | Register_TestData.xlsx | sheet1         | 1   |
+      | excelFileName          | excelSheetName | row | page         |
+      | Register_TestData.xlsx | sheet1         | 1   | registration |
 
   # A phone registration ends at the verification step rather than at a usable account.
   # The code is sent by SMS and nothing in the suite can read one, where the email flow
   # reads its code out of the mailbox over IMAP. Reaching the step the application only
   # shows once it has accepted the form and sent a code is what this can honestly verify.
-  @register @phone
+  @register @phone @Register_TC_002
   Scenario Outline: Successful registration with a phone number
+    Given I am on the UMPay "<page>" page
     When I register with a phone number using "<row>" of "<excelSheetName>" of "<excelFileName>"
     Then the registration should reach the phone verification step
 
     Examples:
-      | excelFileName          | excelSheetName | row |
-      | Register_TestData.xlsx | sheet1         | 5   |
+      | excelFileName          | excelSheetName | row | page         |
+      | Register_TestData.xlsx | sheet1         | 5   | registration |
 
-  @register @negative @email
+  @register @negative @email @Register_TC_003
   Scenario Outline: Registration is rejected for an email address that is already in use
+    Given I am on the UMPay "<page>" page
     When I register with an email address using "<row>" of "<excelSheetName>" of "<excelFileName>"
     Then the registration should be rejected with the message in "<row>" of "<excelSheetName>" of "<excelFileName>"
 
     Examples:
-      | excelFileName          | excelSheetName | row |
-      | Register_TestData.xlsx | sheet1         | 2   |
+      | excelFileName          | excelSheetName | row | page         |
+      | Register_TestData.xlsx | sheet1         | 2   | registration |
 
-  @register @negative @phone
+  @register @negative @phone @Register_TC_004
   Scenario Outline: Registration is rejected for phone number that is already in use
+    Given I am on the UMPay "<page>" page
     When I register with a phone number using "<row>" of "<excelSheetName>" of "<excelFileName>"
     Then the registration should be rejected with the message in "<row>" of "<excelSheetName>" of "<excelFileName>"
 
     Examples:
-      | excelFileName          | excelSheetName | row |
-      | Register_TestData.xlsx | sheet1         | 6   |
+      | excelFileName          | excelSheetName | row | page         |
+      | Register_TestData.xlsx | sheet1         | 6   | registration |
 
-  @register @negative
+  @register @negative @Register_TC_005
   Scenario Outline: Registration is rejected when the captcha code is wrong
+    Given I am on the UMPay "<page>" page
     When I register with an email address using "<row>" of "<excelSheetName>" of "<excelFileName>"
     Then the registration should be rejected with the message in "<row>" of "<excelSheetName>" of "<excelFileName>"
 
     Examples:
-      | excelFileName          | excelSheetName | row |
-      | Register_TestData.xlsx | sheet1         | 4   |
+      | excelFileName          | excelSheetName | row | page         |
+      | Register_TestData.xlsx | sheet1         | 4   | registration |
 
-  @register @negative
+  @register @negative @Register_TC_006
   Scenario Outline: Registration is blocked when the password is shorter than six characters
+    Given I am on the UMPay "<page>" page
     When I fill the registration form using "<row>" of "<excelSheetName>" of "<excelFileName>" without submitting it
     Then the browser should reject the "password" field with the message "Must be at least 6 characters alphanumeric!"
 
     Examples:
-      | excelFileName          | excelSheetName | row |
-      | Register_TestData.xlsx | sheet1         | 3   |
+      | excelFileName          | excelSheetName | row | page         |
+      | Register_TestData.xlsx | sheet1         | 3   | registration |
 
   @register
-  Scenario: Existing users can navigate to the login page from the registration page
+  Scenario Outline: Existing users can navigate to the login page from the registration page
+    Given I am on the UMPay "<page>" page
     Then I should be able to go to the login page from the registration page
+
+    Examples:
+      | page         |
+      | registration |

@@ -38,7 +38,7 @@ Feature: Deposit
   # These submit real deposit orders, one per currency per run. Tag them @manual if that is
   # more than an unattended run should be spending.
 
-  @deposit
+  @deposit @skip @Deposit_TC_001
   Scenario Outline: Successful Deposit Transaction
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I navigate to Deposit page
@@ -59,11 +59,15 @@ Feature: Deposit
 
   # Nothing is submitted here. The scenarios above each deposit in one currency; this is the
   # one that notices a wallet appearing or disappearing from the list they are drawn from.
-  @deposit
-  Scenario: The deposit form offers a wallet for every currency the account holds
-    Given I log into the UMPay application with valid email credentials using "1" of "sheet1" of "Deposit_TestData.xlsx"
+  @deposit @Deposit_TC_002
+  Scenario Outline: The deposit form offers a wallet for every currency the account holds
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I navigate to Deposit page
     Then the deposit currency list should offer "BDT, BRL, HKD, IDR, MXN, MYR, PHP, THB, USD, VND"
+
+    Examples:
+      | excelFileName         | excelSheetName | row |
+      | Deposit_TestData.xlsx | sheet1         | 1   |
 
   # ------------------------------------------------------------------
   # What the amount box will and will not take
@@ -81,35 +85,51 @@ Feature: Deposit
   #
   # Nothing here submits. These cost the account nothing and can be run as often as you like.
 
-  @deposit @negative
-  Scenario: An amount below the minimum is refused
-    Given I log into the UMPay application with valid email credentials using "1" of "sheet1" of "Deposit_TestData.xlsx"
+  @deposit @negative @Deposit_TC_003
+  Scenario Outline: An amount below the minimum is refused
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I navigate to Deposit page
     And I choose the "HKD" wallet on the Deposit page
     And I enter "50" as the deposit amount
     Then the deposit amount should be refused with "Please input an amount of limit min or above!"
 
-  @deposit @negative
-  Scenario: An amount above the maximum is refused
-    Given I log into the UMPay application with valid email credentials using "1" of "sheet1" of "Deposit_TestData.xlsx"
+    Examples:
+      | excelFileName         | excelSheetName | row |
+      | Deposit_TestData.xlsx | sheet1         | 1   |
+
+  @deposit @negative @Deposit_TC_004
+  Scenario Outline: An amount above the maximum is refused
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I navigate to Deposit page
     And I choose the "HKD" wallet on the Deposit page
     And I enter "1000000000" as the deposit amount
     Then the deposit amount should be refused with "Please input an amount of limit max or below!"
 
+    Examples:
+      | excelFileName         | excelSheetName | row |
+      | Deposit_TestData.xlsx | sheet1         | 1   |
+
   # The boundary itself, so the two above are known to be measuring the edge rather than
   # refusing everything.
-  @deposit
-  Scenario: The minimum itself is accepted
-    Given I log into the UMPay application with valid email credentials using "1" of "sheet1" of "Deposit_TestData.xlsx"
+  @deposit @Deposit_TC_005
+  Scenario Outline: The minimum itself is accepted
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I navigate to Deposit page
     And I choose the "HKD" wallet on the Deposit page
     And I enter "100" as the deposit amount
     Then the deposit amount should be accepted
 
-  @deposit
-  Scenario: The amount box states the limits it enforces
-    Given I log into the UMPay application with valid email credentials using "1" of "sheet1" of "Deposit_TestData.xlsx"
+    Examples:
+      | excelFileName         | excelSheetName | row |
+      | Deposit_TestData.xlsx | sheet1         | 1   |
+
+  @deposit @Deposit_TC_006
+  Scenario Outline: The amount box states the limits it enforces
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I navigate to Deposit page
     And I choose the "HKD" wallet on the Deposit page
     Then the deposit form should state a minimum of "100" and a maximum of "999999999"
+
+    Examples:
+      | excelFileName         | excelSheetName | row |
+      | Deposit_TestData.xlsx | sheet1         | 1   |

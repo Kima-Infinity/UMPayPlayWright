@@ -208,6 +208,13 @@ public class BrowserFactory {
 
 		warnIfScreenIsNarrow();
 
+		// One window at a time, always. A context is a window in a headed run, so a context left
+		// open when the next one is asked for is a second window on screen - and the field that
+		// tracked it has already been overwritten, which makes it a window nothing can close.
+		// The scenario hooks are meant to close each one, but "meant to" is not a guarantee: a
+		// hook that throws on its way to quitBrowser skips it entirely.
+		closeEveryOpenContext();
+
 		context = newContext();
 
 		// Playwright caps a navigation at 30 seconds by default. The Selenium suite had no
@@ -270,13 +277,44 @@ public class BrowserFactory {
 			return;
 		}
 
+		// The page's own context, not whichever one the field happens to hold. They are the same
+		// in an orderly run; they are not when a page outlives the context that replaced it, and
+		// closing the wrong one leaves a window nobody owns.
+		BrowserContext owning = null;
+
+		try {
+			owning = page == null ? null : page.context();
+		} catch (Exception alreadyGone) {
+			// A page whose context has been closed has nothing to hand back.
+		}
+
 		if (page != null && !page.isClosed()) {
 			page.close();
 		}
 
-		closeQuietly(context, "browser context");
-		OPEN_CONTEXTS.remove(context);
+		closeQuietly(owning, "browser context");
+		OPEN_CONTEXTS.remove(owning);
+
+		closeEveryOpenContext();
+
 		context = null;
+	}
+
+	/**
+	 * Closes every context still standing, so exactly one window can be open at a time.
+	 *
+	 * In an orderly run there is nothing here to close: the scenario that opened a context
+	 * closes it again. This is for the runs that are not orderly, and it is what makes "one
+	 * browser window at a time" a property of the framework rather than a thing that happens to
+	 * be true while every hook behaves.
+	 */
+	private static void closeEveryOpenContext() {
+
+		for (BrowserContext stillOpen : Set.copyOf(OPEN_CONTEXTS)) {
+
+			closeQuietly(stillOpen, "a browser context left open");
+			OPEN_CONTEXTS.remove(stillOpen);
+		}
 	}
 
 	/**

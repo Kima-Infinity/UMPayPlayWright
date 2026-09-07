@@ -36,6 +36,23 @@ public class RegisterStepDefs {
     private static final int PIN = 8;
 
     RegisterPage registerPage;
+
+    /**
+     * The registration page, built here if this step is the first to need one.
+     *
+     * These scenarios each open the page for themselves rather than sharing a Background, and
+     * the step that opens it by name lives in another class - so the field this class used to
+     * rely on was left null and every step after it threw. A step that assumes another step ran
+     * first is a step that cannot be run on its own.
+     */
+    private RegisterPage registerPage() {
+
+        if (registerPage == null) {
+            registerPage = new RegisterPage(BaseClass.driver);
+        }
+
+        return registerPage;
+    }
     TermsAndConditionsPage termsPage;
     SetupPinPage pinPage;
     HomePage homePage;
@@ -55,9 +72,11 @@ public class RegisterStepDefs {
 
         registerPage = new RegisterPage(BaseClass.driver);
 
-        registerPage.open(BaseClass.config.getRegisterUrl());
+        registerPage().open(BaseClass.config.getRegisterUrl());
 
-        BaseClass.logger = BaseClass.report.createTest("Register a UMPay account");
+        if (BaseClass.logger == null) {
+            BaseClass.logger = BaseClass.report.createTest("Register a UMPay account");
+        }
 
         Assert.assertTrue(registerPage.isRegistrationFormDisplayed(), "Registration form was not displayed");
 
@@ -80,7 +99,7 @@ public class RegisterStepDefs {
         registeredEmail = email;
         pin = excel.getStringData(excelSheetName, row, PIN);
 
-        registerPage.registerWithEmail(
+        registerPage().registerWithEmail(
                 email,
                 excel.getStringData(excelSheetName, row, PASSWORD),
                 excel.getStringData(excelSheetName, row, CAPTCHA_CODE),
@@ -97,7 +116,7 @@ public class RegisterStepDefs {
 
         String phoneNumber = excel.getStringData(excelSheetName, row, PHONE_NUMBER);
 
-        registerPage.registerWithPhone(
+        registerPage().registerWithPhone(
                 excel.getStringData(excelSheetName, row, PHONE_COUNTRY),
                 phoneNumber,
                 excel.getStringData(excelSheetName, row, PASSWORD),
@@ -119,7 +138,7 @@ public class RegisterStepDefs {
             email = Helper.getUniqueEmail(email);
         }
 
-        registerPage.fillEmailRegistrationForm(email, excel.getStringData(excelSheetName, row, PASSWORD));
+        registerPage().fillEmailRegistrationForm(email, excel.getStringData(excelSheetName, row, PASSWORD));
 
         BaseClass.logger.pass("Filled the registration form without submitting it");
     }
@@ -134,9 +153,9 @@ public class RegisterStepDefs {
     public void enterEmailVerificationCode() {
 
         Assert.assertTrue(registerPage.isOtpStepDisplayed(),
-                "Expected the verification code step after submitting. Landed on " + registerPage.getCurrentUrl());
+                "Expected the verification code step after submitting. Landed on " + registerPage().getCurrentUrl());
 
-        registerPage.completeOtpVerification(registeredEmail, BaseClass.config.getCaptchaManualTimeout());
+        registerPage().completeOtpVerification(registeredEmail, BaseClass.config.getCaptchaManualTimeout());
 
         BaseClass.logger.pass("Entered the emailed verification code");
     }
@@ -153,7 +172,7 @@ public class RegisterStepDefs {
         termsPage = new TermsAndConditionsPage(BaseClass.driver);
 
         Assert.assertTrue(termsPage.isDisplayed(),
-                "Expected a policy to accept after verification. Landed on " + registerPage.getCurrentUrl());
+                "Expected a policy to accept after verification. Landed on " + registerPage().getCurrentUrl());
 
         termsPage.acceptAllPolicies();
 
@@ -175,7 +194,7 @@ public class RegisterStepDefs {
 
         Assert.assertTrue(pinPage.isDisplayed(),
                 "Expected the PIN screen after accepting the policies. Landed on "
-                        + registerPage.getCurrentUrl());
+                        + registerPage().getCurrentUrl());
 
         pinPage.setPin(pin);
 
@@ -197,7 +216,7 @@ public class RegisterStepDefs {
         homePage = new HomePage(BaseClass.driver);
 
         Assert.assertTrue(homePage.isTwoFactorPromptDisplayed(),
-                "Expected the 2FA prompt on the home page. Landed on " + registerPage.getCurrentUrl());
+                "Expected the 2FA prompt on the home page. Landed on " + registerPage().getCurrentUrl());
 
         homePage.skipTwoFactorSetup();
 
@@ -207,7 +226,7 @@ public class RegisterStepDefs {
     @Then("I should land on the UMPay home page")
     public void shouldLandOnHomePage() {
 
-        String url = registerPage.getCurrentUrl();
+        String url = registerPage().getCurrentUrl();
         String title = homePage.getPageTitle();
 
         System.out.println("Landed on: " + url + " (" + title + ")");
@@ -254,8 +273,8 @@ public class RegisterStepDefs {
     @Then("the registration should be accepted")
     public void registrationShouldBeAccepted() {
 
-        String message = registerPage.getToastMessage();
-        String url = registerPage.getCurrentUrl();
+        String message = registerPage().getToastMessage();
+        String url = registerPage().getCurrentUrl();
 
         System.out.println("Landed on: " + url);
 
@@ -285,10 +304,10 @@ public class RegisterStepDefs {
     @Then("the registration should reach the phone verification step")
     public void registrationShouldReachPhoneVerificationStep() {
 
-        boolean reachedVerification = registerPage.hasReachedOtpStep();
+        boolean reachedVerification = registerPage().hasReachedOtpStep();
 
-        String message = registerPage.getToastMessage();
-        String url = registerPage.getCurrentUrl();
+        String message = registerPage().getToastMessage();
+        String url = registerPage().getCurrentUrl();
 
         System.out.println("Landed on: " + url);
 
@@ -312,7 +331,7 @@ public class RegisterStepDefs {
      */
     private void attachRefusalScreenshot() {
 
-        String picture = registerPage.getRefusalScreenshot();
+        String picture = registerPage().getRefusalScreenshot();
 
         if (picture.isBlank() || !new java.io.File(picture).exists()) {
             return;
@@ -333,7 +352,7 @@ public class RegisterStepDefs {
         excel = new ExcelDataProvider(excelFileName, excelSheetName);
 
         String expectedMessage = excel.getStringData(excelSheetName, row, EXPECTED_MESSAGE);
-        String actualMessage = registerPage.getErrorMessage();
+        String actualMessage = registerPage().getErrorMessage();
 
         Assert.assertTrue(registerPage.isRegistrationFormDisplayed(),
                 "Registration was accepted but it should have been rejected");
@@ -349,7 +368,7 @@ public class RegisterStepDefs {
     @Then("the browser should reject the {string} field with the message {string}")
     public void fieldShouldFailBrowserValidation(String fieldName, String expectedMessage) {
 
-        String validationMessage = registerPage.getValidationMessage(fieldName);
+        String validationMessage = registerPage().getValidationMessage(fieldName);
 
         Assert.assertFalse(registerPage.isFieldValid(fieldName),
                 "The " + fieldName + " field was accepted by the browser but it should not have been");
@@ -365,10 +384,10 @@ public class RegisterStepDefs {
     @Then("I should be able to go to the login page from the registration page")
     public void goToLoginPage() {
 
-        registerPage.openLoginPage();
+        registerPage().openLoginPage();
 
         Assert.assertTrue(registerPage.getCurrentUrl().contains("/login"),
-                "The login link did not open the login page. Landed on " + registerPage.getCurrentUrl());
+                "The login link did not open the login page. Landed on " + registerPage().getCurrentUrl());
 
         BaseClass.logger.pass("Navigated from the registration page to the login page");
     }

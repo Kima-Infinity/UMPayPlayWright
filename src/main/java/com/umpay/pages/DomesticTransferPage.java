@@ -10,6 +10,16 @@ import java.time.Duration;
 
 public class DomesticTransferPage {
 
+	/** The routes this area offers, in the order its tiles are drawn. */
+	public static final String UNIONPAY_CHINA = "UnionPay China";
+
+	public static final String ALIPAY = "Transfer to Alipay";
+
+	public static final String WECHAT = "Transfer to Wechat";
+
+	public static final java.util.List<String> ROUTES =
+			java.util.List.of(UNIONPAY_CHINA, ALIPAY, WECHAT);
+
 	Page page;
 	
 		private final Locator unionPayChinaButton;
@@ -71,6 +81,56 @@ public class DomesticTransferPage {
 	 * already name a[1] to a[3], and a new route inserted anywhere would silently shift
 	 * every one of them onto the wrong tile.
 	 */
+
+	/**
+	 * The routes this area offers, by the names on its tiles.
+	 *
+	 * Read rather than asked one at a time, so a scenario can hold the area to exactly these
+	 * three - a route appearing here that belongs to Global Transfer, or one of these three
+	 * quietly disappearing, is the kind of change a per-route check never notices.
+	 */
+	public java.util.List<String> routesOffered() {
+
+		java.util.List<String> offered = new java.util.ArrayList<>();
+
+		for (String route : ROUTES) {
+			if (offersRoute(route)) {
+				offered.add(route);
+			}
+		}
+
+		return offered;
+	}
+
+	/** Whether the application is refusing to open a route, in a dialog of its own. */
+	public boolean showsUnavailableWarning() {
+
+		return isPresent(page.locator("xpath=//*[normalize-space(text())='Warning']"));
+	}
+
+	/** Whether that dialog says what it should. */
+	public boolean warningSays(String message) {
+
+		return isPresent(page.locator("xpath=//*[contains(normalize-space(text()),\"" + message + "\")]"));
+	}
+
+	/**
+	 * Clears the warning, so the scenario does not hand the next step a page behind a dialog.
+	 */
+	public void dismissWarning() {
+
+		try {
+			Locator ok = page.locator("xpath=//button[normalize-space()='Ok']");
+
+			ok.first().waitFor();
+			ok.first().click();
+
+			Thread.sleep(1000);
+
+		} catch (Exception noDialog) {
+			System.out.println("There was no warning dialog to dismiss.");
+		}
+	}
 
 	/** True once this area's route list is on screen. */
 	public boolean isShowing() {

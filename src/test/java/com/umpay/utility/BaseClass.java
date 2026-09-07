@@ -183,6 +183,11 @@ public class BaseClass {
      * sendEmailStatic instead, which is the right place: it fixes double sending without
      * caring which hook won.
      */
+    @io.cucumber.java.AfterAll
+    public static void sendReportWhenCucumberFinishes() {
+
+        sendEmailStatic();
+    }
 
     /** One report per run, however many hooks reach this. */
     private static final java.util.concurrent.atomic.AtomicBoolean REPORT_SENT =
@@ -224,6 +229,7 @@ public class BaseClass {
         }
 
         String body = "<h3>UMPay Test Automation Report</h3>"
+                + "<p><b>Ran:</b> " + whatRan() + "</p>"
                 + "<p><b>" + outcome() + "</b> &mdash; " + tally() + ".</p>"
                 + "<p>Please find the attached test execution report.</p>";
         if (screenshotPath != null && !screenshotPath.isEmpty()) {
@@ -238,15 +244,70 @@ public class BaseClass {
                 config.getMailFrom(),
                 config.getMailPassword(),
                 config.getMailTo(),
-                "UMPay Test Automation Report - " + outcome() + " - " + tally()
+                whatRan() + " - " + outcome() + " - " + tally()
                         + " - " + Helper.getCurrentDateTime(),
                 body,
                 attachments
         );
     }
 
+    /** What this run has actually run, for the report entry and the subject line. */
+    private static final java.util.List<String> SCENARIOS_RUN =
+            java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+
+    private static final java.util.Set<String> FEATURES_RUN =
+            java.util.Collections.synchronizedSet(new java.util.LinkedHashSet<>());
+
+    private static final java.util.List<String> TEST_CASES_RUN =
+            java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+
+    /**
+     * How to name what a run covered, in a few words.
+     *
+     * One scenario names itself, and its test case id if it has one - which is what a run
+     * started from the workbook is. More than one is named by the feature they came from, and
+     * more than one feature by how many. The point is an inbox where the reports do not all
+     * read alike: every report used to carry the same subject, so a mail client threaded
+     * hundreds of them into a single conversation and a new one arrived invisibly.
+     */
+    public static String whatRan() {
+
+        if (SCENARIOS_RUN.isEmpty()) {
+            return "No scenarios";
+        }
+
+        if (SCENARIOS_RUN.size() == 1) {
+
+            String name = SCENARIOS_RUN.get(0);
+
+            return TEST_CASES_RUN.isEmpty() ? name : TEST_CASES_RUN.get(0) + " " + name;
+        }
+
+        if (FEATURES_RUN.size() == 1) {
+            return FEATURES_RUN.iterator().next() + " (" + SCENARIOS_RUN.size() + " scenarios)";
+        }
+
+        return FEATURES_RUN.size() + " features (" + SCENARIOS_RUN.size() + " scenarios)";
+    }
+
+    /** Remembers what a scenario was, so the run can say what it covered. */
+    private static void noteWhatIsRunning(Scenario scenario) {
+
+        SCENARIOS_RUN.add(scenario.getName());
+
+        String uri = String.valueOf(scenario.getUri());
+
+        FEATURES_RUN.add(uri.substring(uri.lastIndexOf('/') + 1));
+
+        for (String tag : scenario.getSourceTagNames()) {
+            if (tag.matches("@[A-Za-z_]+_TC_\\d+")) {
+                TEST_CASES_RUN.add(tag.substring(1));
+            }
+        }
+    }
+
     @Before(order = 0)
-    public void cucumberSetUp() {
+    public void cucumberSetUp(Scenario scenario) {
         if (config == null) {
             config = new ConfigDataProvider();
         }
@@ -263,6 +324,14 @@ public class BaseClass {
         if (driver == null) {
             driver = BrowserFactory.startBrowser(config.getUrl());
         }
+
+        noteWhatIsRunning(scenario);
+
+        // Named for the scenario, not for the first step that thought to name it. Every step
+        // that opened a page used to create the report entry itself, so a report of a hundred
+        // scenarios read "Login to UMPay" a hundred times over - the login step ran first in
+        // nearly all of them.
+        logger = report.createTest(scenario.getName());
     }
 
     /**
