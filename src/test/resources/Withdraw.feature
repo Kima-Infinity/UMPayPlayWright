@@ -155,3 +155,90 @@ Feature: Withdraw
       | THB      |
       | MYR      |
       | USD      |
+
+  # ------------------------------------------------------------------
+  # What the form will not let a withdraw be
+  # ------------------------------------------------------------------
+  #
+  # Everything above proves a withdraw that should go through. These prove the ones that should
+  # not, which is the half a suite tends to be missing: until now not one withdraw case was a
+  # negative, so nothing in the file would have noticed the form quietly accepting an amount it
+  # ought to refuse.
+  #
+  # The first three cost the account nothing and can be run as often as you like. Only the last
+  # one presses Confirm, and it presses it on a withdraw the wallet cannot cover - so if the
+  # platform behaves, nothing moves, and if it does not, the case has found something that
+  # matters more than the cost of finding it.
+  #
+  # WHAT THE FORM DOES TO AN AMOUNT AS IT IS TYPED. The box is type=number and the form works on
+  # it key by key, so letters, a zero and a negative never land in it at all - the box is left
+  # empty rather than filled with something wrong, and the form then says the field is required.
+  # That is why these read the box back rather than only asking whether it is valid: a box that
+  # is invalid because it is empty and a box that is invalid because the amount is wrong are the
+  # same verdict from two different places, and only one of them is what is being tested.
+
+  @withdraw @negative @Withdraw_TC_005
+  Scenario Outline: The amount box refuses anything that is not an amount
+    Given I log into the UMPay application with valid email credentials using "1" of "sheet1" of "Withdraw_TestData.xlsx"
+    When I navigate to Withdraw page
+    And I choose the "HKD" wallet on the Withdraw page
+    And I type "<typed>" at the withdraw amount box
+    Then the withdraw amount box should be left holding nothing
+    And the withdraw amount should be refused with "This field is required"
+
+    Examples: things that are not an amount
+      | typed |
+      | abcd  |
+      | 0     |
+      | -100  |
+
+  # A figure finer than the currency's smallest unit cannot be paid out, so the form should not
+  # take one. Hong Kong dollars have cents and nothing smaller.
+  @withdraw @negative @Withdraw_TC_006
+  Scenario Outline: The amount box will not take a figure finer than the currency pays in
+    Given I log into the UMPay application with valid email credentials using "1" of "sheet1" of "Withdraw_TestData.xlsx"
+    When I navigate to Withdraw page
+    And I choose the "HKD" wallet on the Withdraw page
+    And I type "<typed>" at the withdraw amount box
+    Then the withdraw amount box should be left holding "<kept>"
+
+    Examples:
+      | typed   | kept   |
+      | 100.555 | 100.55 |
+
+  # A withdraw with nowhere to send the money should not be raisable at all. The form disables
+  # Confirm rather than hiding it, so what is asserted is that it cannot be pressed - and then
+  # that choosing a payout account is what makes it pressable, since a Confirm that is disabled
+  # for some other reason entirely would pass the first half on its own.
+  @withdraw @negative @Withdraw_TC_007
+  Scenario Outline: A withdraw cannot be confirmed with nowhere to send the money
+    Given I log into the UMPay application with valid email credentials using "1" of "sheet1" of "Withdraw_TestData.xlsx"
+    When I navigate to Withdraw page
+    And I choose the "<currency>" wallet on the Withdraw page
+    And I enter the stated minimum as the withdraw amount
+    Then the withdraw should not be confirmable
+    When I choose the saved payout account "<account>"
+    Then the withdraw should be confirmable
+
+    Examples:
+      | currency | account |
+      | HKD      | HSBC    |
+
+  # The one that presses Confirm. The amount is read from what the wallet actually holds and a
+  # thousand added to it, so the figure is inside the band the form states and outside what the
+  # account has - which is the only way to ask the platform this question rather than the form.
+  #
+  # Nothing should move. If the platform raises an order for it anyway, that is worth knowing.
+  @withdraw @negative @Withdraw_TC_008
+  Scenario Outline: A withdraw for more than the wallet holds is refused
+    Given I log into the UMPay application with valid email credentials using "1" of "sheet1" of "Withdraw_TestData.xlsx"
+    When I navigate to Withdraw page
+    And I choose the "<currency>" wallet on the Withdraw page
+    And I enter more than the wallet holds as the withdraw amount
+    And I choose the saved payout account "<account>"
+    And I confirm the withdraw
+    Then the platform should refuse to raise the order
+
+    Examples:
+      | currency | account |
+      | HKD      | HSBC    |

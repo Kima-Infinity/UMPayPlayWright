@@ -18,7 +18,9 @@ Feature: Profile drawer
   # THE DATA
   #
   # TestData/Profile_TestData.xlsx carries the account, its referral code and the state its
-  # documents are in. The function names and the pages they open are in the scenarios, because
+  # documents are in. The referral code is in the sheet because it is this account's own and does
+  # not change; what is copied is compared against what the drawer shows rather than against the
+  # sheet, since the point is that the two agree with each other. The function names and the pages they open are in the scenarios, because
   # those are what is being asserted rather than what is being fed in.
   #
   # LOGGING OUT
@@ -66,6 +68,55 @@ Feature: Profile drawer
       | Profile_TestData.xlsx | Sheet1         | 3   | Payment              | Payment              | /settings-payment        |
       | Profile_TestData.xlsx | Sheet1         | 3   | Template             | Templates            | /v2/template             |
       | Profile_TestData.xlsx | Sheet1         | 3   | Transfer Fee Setting | Transfer Fee Setting | /settings/transfer-fee   |
+
+  # THE REFERRAL CODE
+  #
+  # The drawer shows this account's own code and offers a control beside it that copies it. The
+  # item around that control is not a control at all - it is drawn with cursor-auto and pressing it
+  # does nothing - so the copy is addressed on its own. Pressing it closes the drawer, which is why
+  # the code is read before the copy rather than after.
+  #
+  # These carry numbers after the logout case rather than before it. The tag is what identifies a
+  # case in the workbook, and renumbering the logout case would break the row already recorded
+  # against it.
+
+  # A code shown but not offered for copying would have to be read off the screen and typed out
+  # again by hand, and a referral code mistyped is somebody else's commission.
+  @profile @Profile_TC_005
+  Scenario Outline: Copying the referral code puts it on the clipboard
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    When I open the profile drawer
+    And I copy my referral code
+    Then the referral code should be on the clipboard
+
+    Examples:
+      | excelFileName         | excelSheetName | row |
+      | Profile_TestData.xlsx | Sheet1         | 2   |
+
+  # Copying leaves nothing on the screen to see, so a notice is the only way somebody knows the
+  # press was heard rather than pressing it again and again.
+  @profile @Profile_TC_006
+  Scenario Outline: The application confirms the referral code was copied
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    When I open the profile drawer
+    And I copy my referral code
+    Then the application should confirm the referral code was copied
+
+    Examples:
+      | excelFileName         | excelSheetName | row |
+      | Profile_TestData.xlsx | Sheet1         | 2   |
+
+  # A code that changed between readings would quietly break every link and message this account
+  # had already sent out, and the commission would go nowhere.
+  @profile @Profile_TC_007
+  Scenario Outline: The referral code does not change between readings
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    When I open the profile drawer
+    Then the referral code should read the same each time the drawer is opened
+
+    Examples:
+      | excelFileName         | excelSheetName | row |
+      | Profile_TestData.xlsx | Sheet1         | 2   |
 
   # The way out asks before it takes it - "Cancel" or "Yes" - and cancelling has to leave the
   # session alone: a confirmation that signs you out either way is not a confirmation.

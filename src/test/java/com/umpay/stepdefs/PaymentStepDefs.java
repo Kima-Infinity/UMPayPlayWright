@@ -9,7 +9,9 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -37,6 +39,9 @@ public class PaymentStepDefs {
 
     /** What the providers were before a search narrowed them. */
     private List<String> offeredBefore = new ArrayList<>();
+
+    /** What the change form held before anything on it was touched. */
+    private Map<String, String> detailsBefore = new LinkedHashMap<>();
 
     /** What was searched for, so the step that judges it can say so. */
     private String searchedFor = "";
@@ -441,5 +446,146 @@ public class PaymentStepDefs {
         payment().goBack();
 
         BaseClass.logger.pass("Went back to the payment accounts");
+    }
+
+    // ------------------------------------------------------------------
+    // What the pages will not let happen
+    // ------------------------------------------------------------------
+
+    @When("I search the providers for {string}")
+    public void iSearchTheProvidersFor(String said) {
+
+        offeredBefore = payment().providersOffered();
+
+        payment().searchProviders(said);
+
+        BaseClass.logger.pass("Searched the providers for \"" + said + "\"");
+    }
+
+    @Then("no provider should be listed")
+    public void noProviderShouldBeListed() {
+
+        List<String> left = payment().providersOffered();
+
+        assertTrue(left.isEmpty(),
+                "Searching for something nobody offers still left " + left.size() + " provider(s)"
+                        + " listed, so the search is not narrowing anything: " + left);
+
+        System.out.println("Nothing matched, out of the " + offeredBefore.size()
+                + " offered before");
+
+        BaseClass.logger.pass("Nothing matched, out of the " + offeredBefore.size() + " offered");
+    }
+
+    @Then("the list should say there is nothing to show")
+    public void theListShouldSaySo() {
+
+        assertTrue(payment().saysThereIsNoData(),
+                "The list went empty without saying why, so somebody who mistyped cannot tell"
+                        + " their own search is what emptied it. It reads: " + payment().text());
+
+        BaseClass.logger.pass("The list says there is nothing to show");
+    }
+
+    @When("I clear the provider search")
+    public void iClearTheProviderSearch() {
+
+        payment().searchProviders("");
+
+        BaseClass.logger.pass("Cleared the provider search");
+    }
+
+    @Then("the providers should be listed again")
+    public void theProvidersShouldBeListedAgain() {
+
+        List<String> back = payment().providersOffered();
+
+        assertFalse(back.isEmpty(),
+                "Clearing the search left the list empty, so a search that found nothing is a dead"
+                        + " end - somebody who mistyped would have to close the panel and start"
+                        + " the form again");
+
+        assertEquals(back.size(), offeredBefore.size(),
+                "Clearing the search brought back " + back.size() + " providers where there had"
+                        + " been " + offeredBefore.size() + ", so the list did not come back as it"
+                        + " was. Now: " + back + ". Before: " + offeredBefore);
+
+        System.out.println("Clearing the search brought all " + back.size() + " providers back");
+
+        BaseClass.logger.pass("Clearing the search brought all " + back.size() + " back");
+    }
+
+    @Then("the change form should insist on the details that identify the account")
+    public void theChangeFormShouldInsist() {
+
+        List<String> insisted = payment().whatTheChangeFormInsistsOn();
+
+        assertFalse(insisted.isEmpty(),
+                "The change form insists on nothing at all, so an account could be saved with the"
+                        + " details a payout is addressed to left blank. It holds: "
+                        + payment().whatTheChangeFormHolds());
+
+        System.out.println("The form insists on " + insisted);
+
+        BaseClass.logger.pass("The change form insists on " + insisted);
+    }
+
+    /**
+     * Empties a box the form will not do without, and saves nothing.
+     *
+     * The value is only set on the screen. Save is never pressed, here or anywhere in this file -
+     * an emptied field saved over one of these accounts would fail the withdraw and payout
+     * scenarios that pay into it, in another file entirely.
+     */
+    @When("I empty the first detail the form insists on")
+    public void iEmptyTheFirstDetail() {
+
+        detailsBefore = payment().whatTheChangeFormHolds();
+
+        payment().emptyTheFirstDetail();
+
+        BaseClass.logger.pass("Emptied the first detail the form insists on, without saving");
+    }
+
+    @Then("the emptied detail should not be acceptable")
+    public void theEmptiedDetailShouldNotBeAcceptable() {
+
+        assertFalse(payment().theFirstDetailIsAcceptable(),
+                "The form would accept this account with the detail a payout is addressed to left"
+                        + " blank, so money could be sent into the dark. It holds: "
+                        + payment().whatTheChangeFormHolds());
+
+        System.out.println("The emptied detail is refused: \""
+                + payment().whatTheFirstDetailSays() + "\"");
+
+        BaseClass.logger.pass("The emptied detail is refused: "
+                + payment().whatTheFirstDetailSays());
+    }
+
+    @When("I remember what the change form holds")
+    public void iRememberWhatTheFormHolds() {
+
+        detailsBefore = payment().whatTheChangeFormHolds();
+
+        assertFalse(detailsBefore.isEmpty(), "The change form holds nothing to remember");
+
+        System.out.println("The form holds " + detailsBefore);
+
+        BaseClass.logger.pass("Remembered what the change form holds: " + detailsBefore);
+    }
+
+    @Then("the change form should hold what it held before")
+    public void theFormShouldHoldWhatItHeldBefore() {
+
+        Map<String, String> now = payment().whatTheChangeFormHolds();
+
+        assertEquals(now, detailsBefore,
+                "The account changed although nothing was saved. It held " + detailsBefore
+                        + " and now holds " + now + ", which would send a payout somewhere other"
+                        + " than where it was addressed");
+
+        System.out.println("Leaving without saving changed nothing: " + now);
+
+        BaseClass.logger.pass("Leaving the form without saving left the account as it was");
     }
 }
