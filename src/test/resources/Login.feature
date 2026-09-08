@@ -194,7 +194,7 @@ Feature: UMPay Login
   # The other ways off the login page
   # ------------------------------------------------------------------
 
-  @login
+  @login @Login_TC_016
   Scenario Outline: Forgot password reaches the reset page
     Given I am on the UMPay "<page>" page
     When I follow the Forgot password link
@@ -204,7 +204,7 @@ Feature: UMPay Login
       | page  |
       | login |
 
-  @login
+  @login @Login_TC_017
   Scenario Outline: A new user can reach registration from the login page
     Given I am on the UMPay "<page>" page
     When I follow the Register link
@@ -214,7 +214,7 @@ Feature: UMPay Login
       | page  |
       | login |
 
-  @login
+  @login @Login_TC_018
   Scenario Outline: Customer Service can be reached without signing in
     Given I am on the UMPay "<page>" page
     When I open Customer Service from the login page
@@ -486,7 +486,7 @@ Feature: UMPay Login
   # "Oops, something isn't working right" - and the form never comes back. Note this is the
   # browser's back rather than an in-page control, which is the nearest thing the web has to
   # the gesture the test case describes.
-  @reset @negative
+  @reset @negative @Reset_Password_TC_016
   Scenario Outline: Going back from the verification step should return to the form
     Given I am on the UMPay password reset page
     When I ask to reset the password by email using "<row>" of "<excelSheetName>" of "<excelFileName>"

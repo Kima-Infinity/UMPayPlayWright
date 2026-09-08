@@ -127,7 +127,7 @@ Feature: Convert
       | excelFileName         | excelSheetName | row |
       | Convert_TestData.xlsx | Sheet1         | 1   |
 
-  @convert @limits
+  @convert @limits @Convert_TC_011
   Scenario Outline: More than the wallet holds cannot be converted
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I navigate to the Convert page

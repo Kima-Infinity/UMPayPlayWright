@@ -93,7 +93,7 @@ Feature: UMPay Registration
       | excelFileName          | excelSheetName | row | page         |
       | Register_TestData.xlsx | sheet1         | 3   | registration |
 
-  @register
+  @register @Register_TC_007
   Scenario Outline: Existing users can navigate to the login page from the registration page
     Given I am on the UMPay "<page>" page
     Then I should be able to go to the login page from the registration page

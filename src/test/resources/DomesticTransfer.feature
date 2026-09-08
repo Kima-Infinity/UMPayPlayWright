@@ -36,7 +36,7 @@ Feature: Domestic Transfer
   # What the area offers
   # ------------------------------------------------------------------
 
-  @domestic
+  @domestic @Domestic_Transfer_TC_005
   Scenario Outline: Domestic Transfer offers exactly the China routes
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open the Domestic Transfer area
@@ -49,7 +49,7 @@ Feature: Domestic Transfer
   # The tiles say Maintenance and the click is refused. Asserted from this area rather than from
   # the Transfer hub, because the same route reached from the wrong place would pass and prove
   # nothing about this one.
-  @domestic @negative
+  @domestic @negative @Domestic_Transfer_TC_006
   Scenario Outline: A payment app route under maintenance refuses to open
     Given I log into the UMPay application with valid email credentials using "<row>" of "<sheet>" of "<file>"
     When I open the Domestic Transfer area
@@ -71,7 +71,7 @@ Feature: Domestic Transfer
   # The UnionPay China form
   # ------------------------------------------------------------------
 
-  @domestic
+  @domestic @Domestic_Transfer_TC_007
   Scenario Outline: UnionPay China states its limits before anything is entered
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open the Domestic Transfer area
@@ -87,7 +87,7 @@ Feature: Domestic Transfer
 
   # The China route converts, so it has a second box for what the recipient receives. Filling
   # the paying box should fill the receiving one.
-  @domestic
+  @domestic @Domestic_Transfer_TC_008
   Scenario Outline: UnionPay China works out what the recipient receives
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open the Domestic Transfer area

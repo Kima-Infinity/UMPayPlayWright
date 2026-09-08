@@ -34,7 +34,7 @@ Feature: International School Fees
   # Reaching the form
   # ------------------------------------------------------------------
 
-  @schoolfee
+  @schoolfee @International_School_Fee_TC_004
   Scenario Outline: The sidebar opens the school fee form
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open International School Fees from the sidebar
@@ -54,7 +54,7 @@ Feature: International School Fees
   # figure the form should state is in the sheet, and the assertion is exact on purpose: it
   # moved from 100 to 10 while this suite was being written, and a change like that should fail
   # somewhere a reader can see rather than pass quietly.
-  @schoolfee
+  @schoolfee @International_School_Fee_TC_005
   Scenario Outline: The form states the minimum it will take
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open International School Fees from the sidebar
@@ -67,7 +67,7 @@ Feature: International School Fees
 
   # An empty form cannot go on, which is what makes the scenarios below it mean anything: a
   # Next that was always enabled would prove nothing about any amount.
-  @schoolfee @negative
+  @schoolfee @negative @International_School_Fee_TC_006
   Scenario Outline: An empty form cannot go on
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open International School Fees from the sidebar
@@ -81,7 +81,7 @@ Feature: International School Fees
   # The arithmetic rather than the figures. A fee that is quoted and then not added, or added
   # twice, is the kind of error a scenario naming three numbers would stop catching the moment
   # the fee changed.
-  @schoolfee
+  @schoolfee @International_School_Fee_TC_007
   Scenario Outline: The form works out the fee and what the transfer comes to
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open International School Fees from the sidebar
@@ -121,7 +121,7 @@ Feature: International School Fees
   # the step this suite stops at, so what is asserted is what actually happens, and the comment
   # is the record that nothing checked the balance on the way past. The figure is worked out
   # from the balance the form is showing, because that moves every time the suite sends anything.
-  @schoolfee @negative
+  @schoolfee @negative @International_School_Fee_TC_008
   Scenario Outline: More than the wallet holds is carried past the amount step unchecked
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open International School Fees from the sidebar
@@ -142,7 +142,7 @@ Feature: International School Fees
   # As far as this suite goes. Next does not send anything - the flow asks which country and
   # which school is being paid next - so going one step further proves the amount step hands on
   # properly without putting a transfer within reach of an accidental click.
-  @schoolfee
+  @schoolfee @International_School_Fee_TC_009
   Scenario Outline: The amount step leads to choosing who is being paid
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open International School Fees from the sidebar
@@ -166,7 +166,7 @@ Feature: International School Fees
   #
   # Still nothing is sent. Choosing a saved school fills the step in and stops there.
 
-  @schoolfee @template
+  @schoolfee @template @International_School_Fee_TC_010
   Scenario Outline: The saved schools are offered
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open International School Fees from the sidebar
@@ -185,7 +185,7 @@ Feature: International School Fees
   # but lost the student, or filled the student's name and left the identity number empty, would
   # be worse than one that did nothing: the fee would go to the right school for the wrong
   # person, and the form would look perfectly filled in.
-  @schoolfee @template
+  @schoolfee @template @International_School_Fee_TC_011
   Scenario Outline: Choosing a saved school fills in the school and the student
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open International School Fees from the sidebar
