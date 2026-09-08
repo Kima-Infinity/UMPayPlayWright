@@ -151,12 +151,36 @@ public class LoginToPageStepDefs {
      * page gives those scenarios something real to be driven by, and delegates to the step that
      * already knows how to open it.
      */
+    /**
+     * Opens the reset page without going through the step that owns it.
+     *
+     * The reset steps live in ResetPasswordStepDefs now, and one Cucumber step class cannot call
+     * a method on another - each is built fresh for the scenario that uses it. So this dispatcher
+     * opens the page itself, which is a few lines duplicated in exchange for the two files
+     * staying independent of each other.
+     */
+    private void openTheResetPage() {
+
+        ResetPasswordPage resetPage = new ResetPasswordPage(BaseClass.driver);
+
+        resetPage.open(BaseClass.config.getResetPasswordUrl());
+
+        if (BaseClass.logger == null) {
+            BaseClass.logger = BaseClass.report.createTest("UMPay password reset");
+        }
+
+        Assert.assertTrue(resetPage.isShowing(),
+                "The reset form was not shown. Landed on " + resetPage.getCurrentUrl());
+
+        BaseClass.logger.pass("Password reset page opened");
+    }
+
     @Given("I am on the UMPay {string} page")
     public void openThePage(String page) {
 
         switch (page.toLowerCase()) {
             case "login" -> openLoginPage();
-            case "password reset" -> openResetPasswordPage();
+            case "password reset" -> openTheResetPage();
             case "registration" -> openRegistrationPage();
             default -> Assert.fail("There is no UMPay \"" + page + "\" page to start from."
                     + " Try login, registration or password reset.");
@@ -468,302 +492,6 @@ public class LoginToPageStepDefs {
                 "The page did not come back in the language that was chosen");
 
         BaseClass.logger.pass("The login page is shown in " + language);
-    }
-
-    // ------------------------------------------------------------------
-    // Forgot Password
-    // ------------------------------------------------------------------
-
-    @Given("I am on the UMPay password reset page")
-    public void openResetPasswordPage() {
-
-        resetPasswordPage = new ResetPasswordPage(BaseClass.driver);
-
-        resetPasswordPage.open(BaseClass.config.getResetPasswordUrl());
-
-        if (BaseClass.logger == null) {
-            BaseClass.logger = BaseClass.report.createTest("UMPay password reset");
-        }
-
-        Assert.assertTrue(resetPasswordPage.isShowing(),
-                "The reset form was not shown. Landed on " + resetPasswordPage.getCurrentUrl());
-
-        BaseClass.logger.pass("Password reset page opened");
-    }
-
-    @When("I fill the phone reset form from {string} of {string} of {string} without sending it")
-    public void fillPhoneResetForm(String rowNumber, String excelSheetName, String excelFileName) {
-
-        int row = Integer.parseInt(rowNumber);
-        excel = new ExcelDataProvider(excelFileName, excelSheetName);
-
-        resetPasswordPage.fillPhoneForm(valueAt(excelSheetName, row, COUNTRY),
-                valueAt(excelSheetName, row, IDENTIFIER),
-                valueAt(excelSheetName, row, RESET_CAPTCHA));
-
-        BaseClass.logger.pass("Filled the phone reset form from row " + row);
-    }
-
-    @When("I fill the email reset form from {string} of {string} of {string} without sending it")
-    public void fillEmailResetForm(String rowNumber, String excelSheetName, String excelFileName) {
-
-        int row = Integer.parseInt(rowNumber);
-        excel = new ExcelDataProvider(excelFileName, excelSheetName);
-
-        resetPasswordPage.fillEmailForm(valueAt(excelSheetName, row, IDENTIFIER),
-                valueAt(excelSheetName, row, RESET_CAPTCHA));
-
-        BaseClass.logger.pass("Filled the email reset form from row " + row);
-    }
-
-    @When("I send the reset form")
-    public void sendTheResetForm() {
-
-        resetPasswordPage.submit();
-    }
-
-    @When("I ask to reset the password by phone using {string} of {string} of {string}")
-    public void requestResetByPhone(String rowNumber, String excelSheetName, String excelFileName) {
-
-        int row = Integer.parseInt(rowNumber);
-        excel = new ExcelDataProvider(excelFileName, excelSheetName);
-
-        resetPasswordPage.requestResetByPhone(valueAt(excelSheetName, row, COUNTRY),
-                valueAt(excelSheetName, row, IDENTIFIER),
-                valueAt(excelSheetName, row, RESET_CAPTCHA));
-
-        BaseClass.logger.pass("Asked for a reset by phone using row " + row
-                + ": " + excel.getStringData(excelSheetName, row, 0));
-    }
-
-    @When("I ask to reset the password by email using {string} of {string} of {string}")
-    public void requestResetByEmail(String rowNumber, String excelSheetName, String excelFileName) {
-
-        int row = Integer.parseInt(rowNumber);
-        excel = new ExcelDataProvider(excelFileName, excelSheetName);
-
-        resetPasswordPage.requestResetByEmail(valueAt(excelSheetName, row, IDENTIFIER),
-                valueAt(excelSheetName, row, RESET_CAPTCHA));
-
-        BaseClass.logger.pass("Asked for a reset by email using row " + row
-                + ": " + excel.getStringData(excelSheetName, row, 0));
-    }
-
-    /**
-     * Asks for a reset using the account's phone number, read from the login sheet.
-     *
-     * The number is taken from Login_TestData's login sheet rather than repeated in the
-     * ResetPassword sheet, so there is one place to change when the account's number
-     * changes. The captcha is read from its image, the same way the other reset scenarios
-     * that reach the server do.
-     */
-    @When("I ask to reset the password for the phone number in {string} of {string} of {string}")
-    public void requestResetForPhoneNumberFrom(String rowNumber, String excelSheetName,
-                                               String excelFileName) {
-
-        int row = Integer.parseInt(rowNumber);
-        excel = new ExcelDataProvider(excelFileName, excelSheetName);
-
-        String[] parts = excel.getStringData(excelSheetName, row, 1).trim().split("\\s+", 2);
-
-        Assert.assertEquals(parts.length, 2,
-                "The phone row should read \"<dialling code> <number>\", such as \"855 96443322\","
-                        + " but it reads \"" + excel.getStringData(excelSheetName, row, 1) + "\"");
-
-        resetPasswordPage.requestResetByPhoneDiallingCode(parts[0], parts[1],
-                ResetPasswordPage.AUTO_CAPTCHA);
-
-        BaseClass.logger.pass("Asked for a reset for +" + parts[0] + " " + parts[1]);
-    }
-
-    @Then("the browser should reject the reset {string} field with the message in {string} of {string} of {string}")
-    public void browserShouldRejectResetField(String fieldName, String rowNumber,
-                                              String excelSheetName, String excelFileName) {
-
-        int row = Integer.parseInt(rowNumber);
-        excel = new ExcelDataProvider(excelFileName, excelSheetName);
-
-        String expected = valueAt(excelSheetName, row, RESET_EXPECTED_MESSAGE);
-
-        Assert.assertFalse(resetPasswordPage.isFieldValid(fieldName),
-                "The " + fieldName + " field was accepted by the browser but it should not have been");
-
-        Assert.assertEquals(resetPasswordPage.validationMessageFor(fieldName), expected,
-                "Unexpected validation message on the " + fieldName + " field");
-
-        BaseClass.logger.pass("The " + fieldName + " field was rejected with: " + expected);
-    }
-
-    @Then("the reset form should complain with the message in {string} of {string} of {string}")
-    public void resetFormShouldComplainWith(String rowNumber, String excelSheetName, String excelFileName) {
-
-        int row = Integer.parseInt(rowNumber);
-        excel = new ExcelDataProvider(excelFileName, excelSheetName);
-
-        String expected = valueAt(excelSheetName, row, RESET_EXPECTED_MESSAGE);
-
-        Assert.assertEquals(resetPasswordPage.fieldError(), expected,
-                "Unexpected complaint under the field");
-
-        BaseClass.logger.pass("The reset form complained: " + expected);
-    }
-
-    @Then("the reset should be refused with the message in {string} of {string} of {string}")
-    public void resetShouldBeRefusedWith(String rowNumber, String excelSheetName, String excelFileName) {
-
-        int row = Integer.parseInt(rowNumber);
-        excel = new ExcelDataProvider(excelFileName, excelSheetName);
-
-        String expected = valueAt(excelSheetName, row, RESET_EXPECTED_MESSAGE);
-        String actual = resetPasswordPage.errorMessage();
-
-        Assert.assertFalse(actual.isBlank(),
-                "The reset was expected to be refused with \"" + expected
-                        + "\" but nothing was said about it");
-
-        Assert.assertTrue(actual.contains(expected),
-                "Expected the reset to be refused with \"" + expected
-                        + "\" but it said \"" + actual + "\"");
-
-        BaseClass.logger.pass("Reset refused with: " + actual);
-    }
-
-    @Then("the reset phone number should be kept as typed in {string} of {string} of {string}")
-    public void resetPhoneNumberShouldBeKeptAsTyped(String rowNumber, String excelSheetName, String excelFileName) {
-
-        int row = Integer.parseInt(rowNumber);
-        excel = new ExcelDataProvider(excelFileName, excelSheetName);
-
-        String typed = valueAt(excelSheetName, row, IDENTIFIER);
-
-        Assert.assertEquals(resetPasswordPage.phoneAsTyped(), typed,
-                "The phone number field did not keep what was typed into it");
-
-        BaseClass.logger.pass("The phone number field kept \"" + typed + "\"");
-    }
-
-    @When("I ask the reset form for a new captcha")
-    public void askForANewCaptcha() {
-
-        captchaBeforeRefresh = resetPasswordPage.captchaSource();
-
-        Assert.assertFalse(captchaBeforeRefresh.isBlank(),
-                "There was no captcha image on the reset form to refresh");
-
-        resetPasswordPage.refreshCaptcha();
-    }
-
-    @Then("a different captcha image should be shown")
-    public void aDifferentCaptchaShouldBeShown() {
-
-        String after = resetPasswordPage.captchaSource();
-
-        Assert.assertFalse(after.isBlank(), "The captcha image went away instead of changing");
-
-        Assert.assertNotEquals(after, captchaBeforeRefresh,
-                "The refresh button left the same captcha image on the form");
-
-        BaseClass.logger.pass("The refresh button issued a different captcha");
-    }
-
-    @Then("the reset form should still be shown")
-    public void resetFormShouldStillBeShown() {
-
-        Assert.assertTrue(resetPasswordPage.isShowing(),
-                "The reset went through when it should have been refused. Landed on "
-                        + resetPasswordPage.getCurrentUrl());
-
-        BaseClass.logger.pass("Still on the reset form");
-    }
-
-    @Then("the verification step should be reached")
-    public void verificationStepShouldBeReached() {
-
-        Assert.assertTrue(resetPasswordPage.isVerificationStepShowing(),
-                "The reset did not reach the verification step. Landed on "
-                        + resetPasswordPage.getCurrentUrl());
-
-        BaseClass.logger.pass("Reached the verification step");
-    }
-
-    @Then("the verification step should offer to send the code again")
-    public void verificationStepShouldOfferResend() {
-
-        Assert.assertTrue(resetPasswordPage.offersResendCode(),
-                "The verification step did not offer to resend the code");
-
-        BaseClass.logger.pass("The verification step offers to resend the code");
-    }
-
-    @Then("no new password should be set")
-    public void noNewPasswordShouldBeSet() {
-
-        // Nothing to do but say so. The account is shared with every other scenario in the
-        // suite, so the reset is deliberately abandoned here; the step exists to make that
-        // visible in the report rather than to leave a reader wondering.
-        BaseClass.logger.pass("The reset was left unfinished on purpose - the password is unchanged");
-    }
-
-    @When("I note where the mailbox has got to")
-    public void noteMailboxPosition() {
-
-        Assert.assertTrue(resetPasswordPage.canReadTheMailbox(),
-                "The mailbox cannot be read, so nothing can be said about whether a code"
-                        + " arrived. Check mail.imap.enabled and the mail credential.");
-
-        resetPasswordPage.noteMailboxPosition();
-
-        BaseClass.logger.pass("Noted where the mailbox had got to before asking for a reset");
-    }
-
-    /**
-     * The point of this step is freshness, not the digits.
-     *
-     * A reset code goes to the account's real address, which already holds codes from
-     * earlier runs, so only a message that arrived after the mailbox was noted proves
-     * anything. The code itself is deliberately never entered - doing so would set a new
-     * password on the account the whole suite signs in with.
-     */
-    @Then("a verification code should arrive for the address in {string} of {string} of {string}")
-    public void verificationCodeShouldArriveFor(String rowNumber, String excelSheetName,
-                                                String excelFileName) {
-
-        int row = Integer.parseInt(rowNumber);
-        excel = new ExcelDataProvider(excelFileName, excelSheetName);
-
-        String address = valueAt(excelSheetName, row, IDENTIFIER);
-        String code = resetPasswordPage.verificationCodeSentTo(address, MAIL_TIMEOUT_SECONDS);
-
-        Assert.assertFalse(code.isBlank(),
-                "No verification code reached " + address + " within " + MAIL_TIMEOUT_SECONDS
-                        + " seconds of asking for the reset. Only a message that arrived after"
-                        + " the mailbox was noted counts, so an older code in the same inbox"
-                        + " does not make this pass.");
-
-        Assert.assertTrue(code.matches("\\d{6}"),
-                "Expected a six digit verification code but the mailbox gave \"" + code + "\"");
-
-        BaseClass.logger.pass("A new verification code arrived for " + address);
-    }
-
-    @When("I go back from the verification step")
-    public void goBackFromVerificationStep() {
-
-        resetPasswordPage.goBack();
-    }
-
-    /**
-     * Deliberately worded for the back-navigation scenario rather than reusing the refusal
-     * step: nothing was refused there, so a failure saying so would send a reader looking
-     * for a rejection that never happened.
-     */
-    @Then("the reset form should be shown again")
-    public void resetFormShouldBeShownAgain() {
-
-        Assert.assertTrue(resetPasswordPage.isShowing(),
-                "The reset form did not come back. Landed on " + resetPasswordPage.getCurrentUrl());
-
-        BaseClass.logger.pass("The reset form came back");
     }
 
     /**
