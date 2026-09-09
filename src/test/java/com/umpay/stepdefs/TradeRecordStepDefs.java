@@ -497,7 +497,13 @@ public class TradeRecordStepDefs {
         java.nio.file.Path saved;
 
         try {
-            saved = tradeRecord().downloadOrder(java.nio.file.Paths.get("Downloads"));
+            // Under target, where the bills and the convert receipts already go: that folder is
+            // ignored by git, and a receipt saved beside the source tree gets committed. One did.
+            java.nio.file.Path folder = java.nio.file.Paths.get("target", "downloads");
+
+            folder.toFile().mkdirs();
+
+            saved = tradeRecord().downloadOrder(folder);
         } catch (Exception nothingCameBack) {
             throw new AssertionError("Download produced no file at all: "
                     + nothingCameBack.getMessage());
