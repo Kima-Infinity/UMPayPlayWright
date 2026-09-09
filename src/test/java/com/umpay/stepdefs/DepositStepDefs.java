@@ -125,4 +125,33 @@ public class DepositStepDefs {
             BaseClass.logger.pass("Initiated Deposit transaction successfully");
         }
     }
+
+    /**
+     * Types at the amount box the way a person would, key by key.
+     *
+     * Not filled in one go: the form works on the box as it is typed, and setting a value on it
+     * outright would walk past the very handling these scenarios are asking about.
+     */
+    @When("I type {string} at the deposit amount box")
+    public void typeAtTheDepositAmountBox(String typed) {
+
+        depositPage.typeAmount(typed);
+
+        System.out.println("Typed \"" + typed + "\" and the box was left holding \""
+                + depositPage.amountBoxHolds() + "\"");
+
+        BaseClass.logger.pass("Typed \"" + typed + "\" at the deposit amount box");
+    }
+
+    @Then("the deposit amount box should be left holding nothing")
+    public void theDepositAmountBoxShouldBeEmpty() {
+
+        String held = depositPage.amountBoxHolds();
+
+        org.testng.Assert.assertTrue(held.isEmpty(),
+                "The amount box took \"" + held + "\", which is not an amount this wallet could"
+                        + " ever be paid in");
+
+        BaseClass.logger.pass("The deposit amount box was left holding nothing, as it should be");
+    }
 }

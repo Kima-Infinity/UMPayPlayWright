@@ -122,6 +122,23 @@ Feature: Profile drawer
   # session alone: a confirmation that signs you out either way is not a confirmation.
 
 
+  # Cancelling comes first, because it is what proves the confirmation is real: a question that
+  # signs you out whichever button is pressed is not a question. This case is described in the
+  # notes above and its steps were written, but the scenario itself was never added - so nothing
+  # held the Cancel button to doing anything at all.
+  @profile @negative @Profile_TC_008
+  Scenario Outline: Cancelling the logout leaves the account signed in
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    When I open the profile drawer
+    And I ask to log out
+    Then the application should ask whether I mean it
+    When I answer "Cancel"
+    Then I should still be signed in
+
+    Examples:
+      | excelFileName         | excelSheetName | row |
+      | Profile_TestData.xlsx | Sheet1         | 4   |
+
   @profile @Profile_TC_004
   Scenario Outline: Logging out signs the account out
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
@@ -134,3 +151,24 @@ Feature: Profile drawer
     Examples:
       | excelFileName         | excelSheetName | row |
       | Profile_TestData.xlsx | Sheet1         | 4   |
+
+  # Signing out has to mean the account cannot be read again. A page held in the browser's
+  # history was drawn while somebody was signed in, and if stepping back to it shows it again
+  # then signing out on a shared machine has done nothing at all.
+  #
+  # This goes last in the file, as the other logout case does: after it the session is gone.
+  @profile @negative @Profile_TC_009
+  Scenario Outline: Going back after signing out does not show the account again
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    When I open the profile drawer
+    And I ask to log out
+    Then the application should ask whether I mean it
+    When I answer "Yes"
+    Then I should be signed out
+    When I go back in the browser
+    Then the account should not be shown again
+
+    Examples:
+      | excelFileName         | excelSheetName | row |
+      | Profile_TestData.xlsx | Sheet1         | 4   |
+

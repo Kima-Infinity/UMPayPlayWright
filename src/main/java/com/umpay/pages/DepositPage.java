@@ -272,6 +272,46 @@ public class DepositPage {
 	}
 
 	/**
+	 * Types at the amount box the way a person would, key by key.
+	 *
+	 * Not filled in one go. The form works on the box as it is typed, so setting a value on it
+	 * outright walks straight past the handling that decides what the box will hold - which is
+	 * the whole of what the scenarios using this are asking about.
+	 */
+	public void typeAmount(String amount) {
+
+		amountField.fill("");
+
+		Wait.sleep(300);
+
+		try {
+			amountField.pressSequentially(amount,
+					new Locator.PressSequentiallyOptions().setDelay(60));
+		} catch (Exception theBoxWouldNotTakeIt) {
+			// A box that refuses the keystrokes outright has refused the amount, which is what
+			// is being asked - it is read back rather than thrown from here.
+		}
+
+		Wait.sleep(800);
+	}
+
+	/**
+	 * What the amount box is actually holding, which is not always what was typed at it.
+	 *
+	 * A scenario that only asked whether the box was valid could not tell an amount that was
+	 * refused from one that never arrived: both leave the box invalid, and only one of them is
+	 * what is under test.
+	 */
+	public String amountBoxHolds() {
+
+		try {
+			return String.valueOf(amountField.inputValue()).trim();
+		} catch (Exception notThere) {
+			return "";
+		}
+	}
+
+	/**
 	 * The browser's own verdict on the amount.
 	 *
 	 * The box is type=number with min and max, so an amount outside them never reaches the

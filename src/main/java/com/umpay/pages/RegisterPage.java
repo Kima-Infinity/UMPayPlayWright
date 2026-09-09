@@ -124,7 +124,11 @@ public class RegisterPage {
 		this.otpField = page.locator("xpath=//input[contains(@placeholder,'OTP') or contains(@placeholder,'6-digits')]");
 		this.otpNextButton = page.locator("xpath=//button[normalize-space()='Next']");
 		this.registerButton = page.locator("xpath=//button[@type='submit' and normalize-space()='Register']");
-		this.termsAndConditionsLink = page.locator("xpath=//a[normalize-space()='Terms and Conditions']");
+		// Either shape: the page has drawn this as a link and as a button at different times, and
+		// the locator that named only the link matched nothing on the day the button was there.
+		this.termsAndConditionsLink = page.locator(
+				"xpath=//a[normalize-space()='Terms and Conditions']"
+				+ " | //button[normalize-space()='Terms and Conditions']");
 		this.loginLink = page.locator("xpath=//a[@href='/login']");
 		this.toastMessage = page.locator("xpath=//div[contains(@class,'Toastify__toast-body')]");
 		this.alertMessage = page.locator("xpath=//div[contains(@class,'border-primary-900')]//p");
@@ -155,6 +159,36 @@ public class RegisterPage {
 	 * which is test-scoped; what belongs here is knowing that opening this page means
 	 * a fresh navigation rather than a click from somewhere else.
 	 */
+	/**
+	 * Where the terms link points.
+	 *
+	 * Read rather than followed. It carries target=_blank and points at umpay.me, a site outside
+	 * the application altogether - opening it would make this suite depend on a marketing page
+	 * loading, which says nothing about UMPay. What the registration page is answerable for is
+	 * that it says what is being agreed to and points somewhere it can be read.
+	 */
+	public String whereTheTermsLinkGoes() {
+
+		try {
+			String href = termsAndConditionsLink.first().getAttribute("href");
+
+			return href == null ? "" : href.trim();
+		} catch (Exception notThere) {
+			return "";
+		}
+	}
+
+	/** True while the registration page offers its terms to be read at all. */
+	public boolean offersTermsAndConditions() {
+
+		try {
+			return termsAndConditionsLink.count() > 0
+					&& termsAndConditionsLink.first().isVisible();
+		} catch (Exception notThere) {
+			return false;
+		}
+	}
+
 	public void open(String registrationUrl) {
 
 		page.navigate(registrationUrl);

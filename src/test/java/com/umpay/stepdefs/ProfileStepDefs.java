@@ -292,4 +292,32 @@ public class ProfileStepDefs {
 
         BaseClass.logger.pass("Signed out");
     }
+
+    @When("I go back in the browser")
+    public void iGoBackInTheBrowser() {
+
+        drawer().goBackInTheBrowser();
+
+        BaseClass.logger.pass("Went back in the browser");
+    }
+
+    /**
+     * Going back must not put the account back on the screen.
+     *
+     * A page held in the browser's history was drawn while somebody was signed in. If stepping
+     * back to it shows it again, then anybody with the machine after them can read the account -
+     * signing out on a shared computer would have done nothing at all.
+     */
+    @Then("the account should not be shown again")
+    public void theAccountShouldNotBeShownAgain() {
+
+        assertTrue(drawer().isSignedOut(),
+                "Going back after signing out put the account on the screen again. The page is at "
+                        + drawer().getCurrentUrl() + ", so signing out on a shared machine leaves"
+                        + " the account readable by whoever sits down next");
+
+        System.out.println("Going back after signing out does not show the account again");
+
+        BaseClass.logger.pass("Going back after signing out does not show the account again");
+    }
 }

@@ -286,3 +286,45 @@ Feature: UMPay Login
     Examples:
       | excelFileName       | excelSheetName | row |
       | Login_TestData.xlsx | NegativeLogin  | 6   |
+
+  # ------------------------------------------------------------------
+  # The two factor prompt
+  # ------------------------------------------------------------------
+  #
+  # Every sign-in in this suite is met by an offer to set up two factor authentication, and every
+  # scenario skips it - dismissTwoFactorPromptIfShowing is called in twenty-one step classes and
+  # runs a few hundred times in a full pass. Nothing had ever asked whether the prompt was there
+  # to be skipped, so the suite was built to walk past a security control it never tested.
+  #
+  # SETTING ONE UP IS DELIBERATELY LEFT ALONE. It would tie this account to a secret the suite
+  # would then have to keep and generate codes from, and every other scenario signs in as this
+  # account. So a wrong-code case is out of scope on purpose rather than by oversight.
+
+  @login @twofactor @Login_TC_019
+  Scenario Outline: Signing in offers two factor authentication and lets it be skipped
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    Then the two factor prompt should be shown
+    When I skip the two factor prompt
+    Then I should be let through to the home page
+
+    Examples:
+      | excelFileName       | excelSheetName | row |
+      | Login_TestData.xlsx | Sheet1         | 1   |
+
+  # Skipping must not settle the question for good. A security control offered once and never
+  # again is one the account can only ever have by accident.
+  @login @twofactor @Login_TC_020
+  Scenario Outline: Skipping two factor authentication does not stop it being offered again
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    Then the two factor prompt should be shown
+    When I skip the two factor prompt
+    And I open the profile drawer
+    And I ask to log out
+    And I answer "Yes"
+    Then I should be signed out
+    When I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    Then the two factor prompt should be shown
+
+    Examples:
+      | excelFileName       | excelSheetName | row |
+      | Login_TestData.xlsx | Sheet1         | 1   |

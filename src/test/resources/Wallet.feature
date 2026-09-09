@@ -215,3 +215,26 @@ Feature: Wallet
     Examples:
       | excelFileName        | excelSheetName | row |
       | Wallet_TestData.xlsx | Sheet1         | 3   |
+
+  # ------------------------------------------------------------------
+  # The two screens that show the same money
+  # ------------------------------------------------------------------
+  #
+  # The home page and the wallet page draw the same balances from the same place, and nothing had
+  # ever held one against the other. A wallet reading one figure on the screen somebody lands on
+  # and a different one on the screen they go to is worse than either being wrong on its own:
+  # there is no way to tell which of them to believe.
+  #
+  # The home page hides its amounts and keeps most of its wallets behind Show More, so both have
+  # to be dealt with before there is anything to read.
+
+  @wallet @Wallet_TC_014
+  Scenario Outline: The wallet page and the home page agree about what each wallet holds
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    When I note what the home page says each wallet holds
+    And I open the Wallet page
+    Then the wallet page should agree with the home page about what each wallet holds
+
+    Examples:
+      | excelFileName        | excelSheetName | row |
+      | Wallet_TestData.xlsx | Sheet1         | 1   |

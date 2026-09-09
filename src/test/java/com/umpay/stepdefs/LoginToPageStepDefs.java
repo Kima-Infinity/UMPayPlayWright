@@ -503,4 +503,68 @@ public class LoginToPageStepDefs {
 
         return BLANK.equals(value) ? "" : value;
     }
+
+    /**
+     * The two factor prompt that meets every sign-in.
+     *
+     * The suite skips this roughly three hundred times a run and had never once asked whether it
+     * was there to be skipped. Setting an authenticator up is deliberately left alone - it would
+     * tie this account to a secret the suite would then have to keep and generate codes from -
+     * so what is held to is that the prompt is offered and that skipping it is not permanent.
+     */
+    @Then("the two factor prompt should be shown")
+    public void theTwoFactorPromptShouldBeShown() {
+
+        homePage = new HomePage(BaseClass.driver);
+
+        com.umpay.utility.Wait.until(() -> homePage.isTwoFactorPromptDisplayed(), 20);
+
+        Assert.assertTrue(homePage.isTwoFactorPromptDisplayed(),
+                "Signing in did not offer to set up two factor authentication, so an account"
+                        + " without it is never asked. The page is at " + homePage.getCurrentUrl());
+
+        System.out.println("The two factor prompt was offered");
+
+        BaseClass.logger.pass("Signing in offered to set up two factor authentication");
+    }
+
+    /**
+     * Skips the two factor prompt, from the login side of the application.
+     *
+     * The registration steps have a skip of their own, and borrowing it does not work: it is
+     * written for the flow that has just registered an account and carries that flow's state, so
+     * a scenario starting from an ordinary sign-in walks into a half-built RegisterStepDefs and
+     * fails on something that has nothing to do with two factor authentication.
+     */
+    @When("I skip the two factor prompt")
+    public void iSkipTheTwoFactorPrompt() {
+
+        homePage = new HomePage(BaseClass.driver);
+
+        Assert.assertTrue(homePage.skipTwoFactorSetup(),
+                "There was no two factor prompt to skip. The page is at "
+                        + homePage.getCurrentUrl());
+
+        BaseClass.logger.pass("Skipped the two factor prompt");
+    }
+
+    @Then("I should be let through to the home page")
+    public void iShouldBeLetThroughToTheHomePage() {
+
+        homePage = new HomePage(BaseClass.driver);
+
+        com.umpay.utility.Wait.until(() -> !homePage.isTwoFactorPromptDisplayed(), 15);
+
+        Assert.assertFalse(homePage.isTwoFactorPromptDisplayed(),
+                "The two factor prompt is still covering the home page after being skipped");
+
+        Assert.assertTrue(homePage.walletCount() > 0,
+                "Skipping the prompt did not leave the account on its own home page. The page is"
+                        + " at " + homePage.getCurrentUrl());
+
+        System.out.println("Skipping let the account through to " + homePage.getCurrentUrl()
+                + " with " + homePage.walletCount() + " wallets showing");
+
+        BaseClass.logger.pass("Skipping the prompt let the account through to the home page");
+    }
 }

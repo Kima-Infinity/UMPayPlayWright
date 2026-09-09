@@ -101,3 +101,25 @@ Feature: UMPay Registration
     Examples:
       | page         |
       | registration |
+
+  # The terms somebody is signing up to. The registration page offers them and nothing had ever
+  # opened them - the locator for the link had been written into the page object and never used
+  # by anything, so a link that stopped working would have gone unnoticed.
+  #
+  # There is no box to tick: the form asks for an address, a password and a captcha and nothing
+  # else, so what is held to is that the page says what is being agreed to and points somewhere
+  # it can be read - not that it must be agreed to.
+  #
+  # The link is read rather than followed. It carries target=_blank and points at umpay.me, a
+  # site outside the application, and following it would make this case depend on a marketing
+  # page loading - which would say nothing about UMPay either way.
+  @register @Register_TC_008
+  Scenario Outline: The terms can be read from the registration page
+    Given I am on the UMPay registration page
+    Then the registration page should offer its terms to be read
+    Then the terms should be linked to somewhere they can be read
+
+    Examples:
+      | excelFileName         | excelSheetName | row |
+      | Register_TestData.xlsx | Sheet1        | 1   |
+

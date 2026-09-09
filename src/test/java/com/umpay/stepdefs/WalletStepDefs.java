@@ -538,4 +538,138 @@ public class WalletStepDefs {
 
         BaseClass.logger.pass("Went back to the wallets");
     }
+
+    // ------------------------------------------------------------------
+    // The home page and the wallet page, held against each other
+    // ------------------------------------------------------------------
+
+    /** What the home page said each wallet holds, before the run moved off it. */
+    private Map<String, String> homeSaid = new HashMap<>();
+
+    /**
+     * Whether two figures are the same amount of money.
+     *
+     * Compared as numbers rather than as text. The two screens write the same amount differently
+     * - the home page draws the Mexican wallet as 289.50 and the wallet page as 289.5 - and a
+     * comparison of the characters would report that as the screens disagreeing about somebody's
+     * money, which it plainly is not.
+     */
+    private boolean worthTheSame(String one, String other) {
+
+        try {
+            return new BigDecimal(one).compareTo(new BigDecimal(other)) == 0;
+        } catch (NumberFormatException notNumbers) {
+            return String.valueOf(one).equals(other);
+        }
+    }
+
+    /** Only what a figure is worth: symbols, spaces and separators dropped. */
+    private String justTheFigure(String said) {
+
+        return String.valueOf(said).replace(",", "").replaceAll("[^0-9.-]", "");
+    }
+
+    /**
+     * Reads what the home page says every wallet holds.
+     *
+     * The amounts arrive hidden and only three wallets are drawn, so both have to be dealt with
+     * before there is anything to read.
+     */
+    @When("I note what the home page says each wallet holds")
+    public void iNoteWhatTheHomePageSays() {
+
+        HomePage home = new HomePage(BaseClass.driver);
+
+        home.dismissTwoFactorPromptIfShowing();
+
+        Wait.sleep(2500);
+
+        home.revealBalances();
+
+        Wait.sleep(2000);
+
+        if (home.offersShowMore()) {
+            home.showMoreWallets();
+        }
+
+        homeSaid.clear();
+
+        for (String card : home.getWalletRows()) {
+
+            String currency = card.split("[\s|]+")[0];
+
+            int at = card.indexOf("Balance:");
+
+            if (at < 0) {
+                continue;
+            }
+
+            String rest = card.substring(at + "Balance:".length()).trim();
+            int ends = rest.indexOf("Blocked");
+
+            homeSaid.put(currency, justTheFigure(ends < 0 ? rest : rest.substring(0, ends)));
+        }
+
+        assertFalse(homeSaid.isEmpty(), "The home page said nothing about any wallet");
+
+        System.out.println("The home page says: " + homeSaid);
+
+        BaseClass.logger.pass("Noted what the home page says " + homeSaid.size()
+                + " wallets hold");
+    }
+
+    /**
+     * The two screens have to agree about the same money.
+     *
+     * They are drawn from the same figures and nothing had ever held one against the other. A
+     * wallet reading one thing on the screen somebody lands on and another on the screen they go
+     * to is worse than either being wrong on its own, because there is no way to tell which to
+     * believe.
+     */
+    @Then("the wallet page should agree with the home page about what each wallet holds")
+    public void theTwoPagesShouldAgree() {
+
+        assertFalse(homeSaid.isEmpty(), "Nothing was noted from the home page to compare against");
+
+        List<String> disagreeing = new ArrayList<>();
+        List<String> missing = new ArrayList<>();
+
+        Map<String, String> walletSaid = new HashMap<>();
+
+        for (String wallet : wallet().wallets()) {
+
+            String currency = wallet().currencyOf(wallet);
+
+            if (currency == null || currency.isEmpty()) {
+                continue;
+            }
+
+            walletSaid.put(currency, justTheFigure(wallet().saidAfter(wallet, "Balance:")));
+        }
+
+        for (Map.Entry<String, String> onHome : homeSaid.entrySet()) {
+
+            String here = walletSaid.get(onHome.getKey());
+
+            if (here == null) {
+                missing.add(onHome.getKey());
+            } else if (!worthTheSame(onHome.getValue(), here)) {
+                disagreeing.add(onHome.getKey() + ": the home page says " + onHome.getValue()
+                        + " and the wallet page says " + here);
+            }
+        }
+
+        assertTrue(missing.isEmpty(),
+                "The home page lists wallets the wallet page does not: " + missing
+                        + ". The wallet page lists " + walletSaid.keySet());
+
+        assertTrue(disagreeing.isEmpty(),
+                "The two screens disagree about the same money, so there is no way to tell which"
+                        + " to believe: " + disagreeing);
+
+        System.out.println("Both screens agree about all " + homeSaid.size() + " wallets");
+
+        BaseClass.logger.pass("The home page and the wallet page agree about all "
+                + homeSaid.size() + " wallets");
+    }
 }

@@ -203,6 +203,21 @@ Feature: Settings
       | excelFileName          | excelSheetName | row |
       | Settings_TestData.xlsx | Sheet1         | 2   |
 
+  # The email form is held to both an empty box and a malformed address; the phone form was only
+  # ever held to the empty one. A number that is not a number is the other half of the same rule.
+  @settings @negative @Settings_TC_014
+  Scenario Outline: Changing the phone number is refused when it is not a number
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    When I open the Settings page
+    And I open "Phone Number" from the settings
+    And I fill the phone form from "<row>" of "<excelSheetName>" of "<excelFileName>"
+    And I go on from the form
+    Then the form should refuse to go on
+
+    Examples:
+      | excelFileName          | excelSheetName | row |
+      | Settings_TestData.xlsx | Sheet1         | 4   |
+
   @settings @Settings_TC_013
   Scenario Outline: Going back from a setting returns to the settings
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"

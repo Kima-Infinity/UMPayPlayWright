@@ -351,6 +351,69 @@ public class TradeRecordPage {
 		Wait.until(() -> !page.url().equals(startedAt), 15);
 	}
 
+	/**
+	 * Whether the order offers its receipt to be kept.
+	 *
+	 * An order somebody cannot keep a copy of is one they cannot show anybody - a bank, an
+	 * employer, whoever is asking where the money went. Bills and the commission listing both
+	 * offer it and the trade record was never asked whether it does.
+	 */
+	public boolean orderOffersToBeKept() {
+
+		// Waited for rather than read once. The order's own page says "LOADING Please wait while
+		// loading resource" for a moment after it opens, and a reading taken then finds no
+		// controls at all - which reads as an order that offers nothing rather than one that has
+		// not finished arriving.
+		Wait.until(() -> offers("Download") && offers("Share"), 20);
+
+		return offers("Download") && offers("Share");
+	}
+
+	/** Downloads the order's receipt and hands back the file it produced. */
+	public java.nio.file.Path downloadOrder(java.nio.file.Path saveTo) {
+
+		com.microsoft.playwright.Download download = page.waitForDownload(() ->
+				page.locator("xpath=//button[normalize-space()='Download']").first().click());
+
+		java.nio.file.Path file = saveTo.resolve(download.suggestedFilename());
+
+		download.saveAs(file);
+
+		return file;
+	}
+
+	/** Opens the sharing choices for the order. */
+	public void shareOrder() {
+
+		page.locator("xpath=//button[normalize-space()='Share']").first().click();
+
+		Wait.until(this::shareOffersACopy, 15);
+	}
+
+	/** Whether the sharing choices offer a way to copy it. */
+	public boolean shareOffersACopy() {
+
+		try {
+			Locator copy = page.locator("xpath=//button[normalize-space()='Copy']");
+
+			return copy.count() > 0 && copy.first().isVisible();
+		} catch (Exception notOffered) {
+			return false;
+		}
+	}
+
+	/** Whether the page offers a control saying {@code named}. */
+	private boolean offers(String named) {
+
+		try {
+			Locator control = page.locator("xpath=//button[normalize-space()='" + named + "']");
+
+			return control.count() > 0 && control.first().isVisible();
+		} catch (Exception notThere) {
+			return false;
+		}
+	}
+
 	/** Everything the page says, for a step that has to report what it found instead. */
 	public String text() {
 

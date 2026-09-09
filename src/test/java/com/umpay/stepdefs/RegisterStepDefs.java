@@ -391,4 +391,31 @@ public class RegisterStepDefs {
 
         BaseClass.logger.pass("Navigated from the registration page to the login page");
     }
+
+    @Then("the registration page should offer its terms to be read")
+    public void theRegistrationPageShouldOfferItsTerms() {
+
+        org.testng.Assert.assertTrue(registerPage.offersTermsAndConditions(),
+                "The registration page offers no way to read the terms before signing up to them");
+
+        BaseClass.logger.pass("The registration page offers its terms to be read");
+    }
+
+    @Then("the terms should be linked to somewhere they can be read")
+    public void theTermsShouldBeLinked() {
+
+        String where = registerPage.whereTheTermsLinkGoes();
+
+        org.testng.Assert.assertFalse(where.isEmpty(),
+                "The registration page names the terms but the link goes nowhere, so somebody is"
+                        + " asked to accept something they cannot read");
+
+        org.testng.Assert.assertTrue(where.matches("(?i).*(term|condition|policy|legal).*"),
+                "The terms link points at \"" + where + "\", which does not read as anywhere the"
+                        + " terms would be");
+
+        System.out.println("The terms are linked to " + where);
+
+        BaseClass.logger.pass("The terms are linked to " + where);
+    }
 }

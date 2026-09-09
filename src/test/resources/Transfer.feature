@@ -389,3 +389,29 @@ Feature: UMPay transfers
     Examples:
       | excelFileName          | excelSheetName | row |
       | Transfer_TestData.xlsx | sheet1         | 3   |
+
+  # ------------------------------------------------------------------
+  # Sending to yourself
+  # ------------------------------------------------------------------
+  #
+  # Naming your own account as the recipient. Every payment product refuses this and nothing here
+  # had ever asked whether UMPay does - the recipient scenarios above all name somebody who does
+  # not exist, which is a different question entirely: this one names somebody who very much does.
+  #
+  # Nothing is sent. The scenario stops at whether the form will let the transfer be built at
+  # all, which is where the refusal belongs - money that has gone out and come back to the same
+  # wallet has still been through the fee and the ledger.
+
+  @transfer @negative @Transfer_TC_014
+  Scenario Outline: A transfer aimed at the account making it is refused
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    When I open the Transfer hub
+    And I take the "UMPay to UMPay Wallet" route from the Transfer hub
+    Then the UMPay wallet transfer form should be shown
+    When I name the recipient by "EMAIL"
+    And I give the recipient's "EMAIL" from "<row>" of "<excelSheetName>" of "<excelFileName>"
+    Then the wallet transfer should not be ready to continue
+
+    Examples:
+      | excelFileName          | excelSheetName | row |
+      | Transfer_TestData.xlsx | sheet1         | 13  |
