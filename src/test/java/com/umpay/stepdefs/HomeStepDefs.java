@@ -55,10 +55,23 @@ public class HomeStepDefs {
         return each;
     }
 
-    /** True while what the card shows is written with a minus in front of it. */
-    private boolean readsAsNegative(String amount) {
+    /**
+     * True while a held figure is written the way the platform writes them - as a deduction.
+     *
+     * Nothing held is a deduction of nothing, so a wallet with a plain zero against it counts:
+     * the convention is that the figure is never a positive quantity.
+     */
+    private boolean readsAsADeduction(String amount) {
 
-        return amount != null && amount.contains("-");
+        if (amount == null) {
+            return false;
+        }
+
+        if (amount.contains("-")) {
+            return true;
+        }
+
+        return amount.replaceAll("[^0-9.]", "").matches("0*\\.?0*");
     }
 
     @When("I am on the home page")
@@ -264,35 +277,40 @@ public class HomeStepDefs {
     }
 
     /**
-     * What is held against a wallet, read as a quantity rather than as a debit.
+     * What is held against a wallet is written as a deduction.
      *
-     * Money set aside is not money owed. A minus in front of it says the account is owed that
-     * amount rather than kept from spending it, and the total then reads as a negative sum.
+     * The minus sign is the platform's own convention: money set aside is shown as taken off
+     * what the wallet has rather than as a quantity beside it, on the home page and on the
+     * wallet page alike. This once read the other way round, asserting that nothing held should
+     * be negative, and reported the convention as a defect. Written this way, the thing that
+     * fails is a wallet that breaks the convention - which is the inconsistency worth catching.
      */
-    @Then("no wallet should show what is held against it as a negative amount")
-    public void nothingHeldShouldReadNegative() {
+    @Then("what is held against every wallet should be written as a deduction")
+    public void whatIsHeldShouldBeADeduction() {
 
         Map<String, String> held = home().blockedAmountsShown();
 
         assertFalse(held.isEmpty(), "No wallet says anything about what is held against it");
 
-        List<String> negative = new ArrayList<>();
+        List<String> odd = new ArrayList<>();
 
         for (Map.Entry<String, String> wallet : held.entrySet()) {
 
-            if (readsAsNegative(wallet.getValue())) {
-                negative.add(wallet.getKey() + " shows " + wallet.getValue());
+            if (!readsAsADeduction(wallet.getValue())) {
+                odd.add(wallet.getKey() + " shows " + wallet.getValue());
             }
         }
 
-        assertTrue(negative.isEmpty(),
-                "These wallets write what is held against them as a negative amount, which reads"
-                        + " as money the account is owed rather than money it cannot spend: "
-                        + negative + ". The total says \"" + home().getTotalBlockedAmount() + "\"");
+        assertTrue(odd.isEmpty(),
+                "Every other wallet writes what is held against it as a deduction, and these do"
+                        + " not, so the same figure is being shown two different ways: " + odd
+                        + ". The total says \"" + home().getTotalBlockedAmount() + "\"");
 
-        System.out.println("Nothing held is written as a negative amount: " + held);
+        System.out.println("All " + held.size() + " wallets write what is held as a deduction: "
+                + held);
 
-        BaseClass.logger.pass("No wallet writes what is held against it as a negative amount");
+        BaseClass.logger.pass("All " + held.size() + " wallets write what is held against them as"
+                + " a deduction");
     }
 
     @Then("Customer Service should be offered on the home page")
