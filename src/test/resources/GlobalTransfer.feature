@@ -56,7 +56,7 @@ Feature: Global Transfer
   # Rows 5 and 6 name the accounts the two payout routes pay; row 7 is for the scenarios that
   # only look.
 
-  @transfer
+  @transfer @Global_Transfer_TC_005
   Scenario Outline: Global Transfer offers the transfer options outside China
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open the Global Transfer area
@@ -77,7 +77,7 @@ Feature: Global Transfer
   # DomesticTransfer.feature - depth for one area belongs in its own file. What is left here is
   # the Global side of the same screen, which is the same form without the conversion, and
   # asserting the absence is the point.
-  @transfer
+  @transfer @Global_Transfer_TC_006
   Scenario Outline: UnionPay Global offers the same form without a converted amount
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open the Global Transfer area
@@ -104,7 +104,7 @@ Feature: Global Transfer
   # The amount is the smallest the form states, which is a conversion that moves - it read
   # 19.77 USD the day this was written - so it is read off the form rather than written here.
 
-  @transfer @sends
+  @transfer @sends @Global_Transfer_TC_007
   Scenario Outline: A personal bank payout is sent
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open the Global Transfer area
@@ -122,7 +122,7 @@ Feature: Global Transfer
       | excelFileName                | excelSheetName | row |
       | GlobalTransfer_TestData.xlsx | sheet1                      | 6   |
 
-  @transfer @sends
+  @transfer @sends @Global_Transfer_TC_008
   Scenario Outline: A USDT payout is sent
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open the Global Transfer area
@@ -148,7 +148,7 @@ Feature: Global Transfer
   # all, so nothing is sent and nothing has to be undone - which is what makes this the right
   # negative to have beside a scenario that spends money.
 
-  @transfer @negative
+  @transfer @negative @Global_Transfer_TC_009
   Scenario Outline: A payout below the stated minimum cannot be confirmed
     Given I log into the UMPay application with valid email credentials using "1" of "sheet1" of "GlobalTransfer_TestData.xlsx"
     When I open the Global Transfer area
@@ -169,7 +169,7 @@ Feature: Global Transfer
   # The other way a payout is refused: inside the band, but more than the wallet holds. Worth
   # having beside the sending scenarios because it is the failure a real user meets most often,
   # and because it costs nothing to prove.
-  @transfer @negative
+  @transfer @negative @Global_Transfer_TC_010
   Scenario Outline: A payout of more than the wallet holds cannot be confirmed
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open the Global Transfer area
@@ -185,7 +185,7 @@ Feature: Global Transfer
   # The school fee route, asserted where it starts. The form it opens is covered in full by
   # InternationalSchoolFees.feature; what this proves is that Global Transfer still reaches it,
   # which is broken for whoever uses this route however well the sidebar's own entry works.
-  @schoolfee
+  @schoolfee @International_School_Fee_TC_012
   Scenario Outline: Global Transfer reaches the same form
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I open the Global Transfer area

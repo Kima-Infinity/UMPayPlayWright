@@ -493,6 +493,112 @@ public class WithdrawPage {
 	}
 
 	/**
+	 * What the amount box is actually holding, which is not always what was typed at it.
+	 *
+	 * The box is type=number and the form works on it as it is typed, so letters, a zero and a
+	 * negative never land in it at all - it is left empty rather than filled with something
+	 * wrong. A scenario that only asked whether the box was valid could not tell the difference
+	 * between an amount that was refused and one that was never entered.
+	 */
+	public String amountBoxHolds() {
+
+		try {
+			return String.valueOf(amountField.inputValue()).trim();
+		} catch (Exception notThere) {
+			return "";
+		}
+	}
+
+	/** Types at the amount box the way a person would, key by key. */
+	public void typeAmount(String amount) {
+
+		amountField.fill("");
+
+		Wait.sleep(300);
+
+		try {
+			amountField.pressSequentially(amount,
+					new Locator.PressSequentiallyOptions().setDelay(60));
+		} catch (Exception theBoxWouldNotTakeIt) {
+			// A box that refuses the keystrokes outright has refused the amount, which is what
+			// the scenario is asking about - it is read back rather than thrown from here.
+		}
+
+		Wait.sleep(800);
+	}
+
+	/**
+	 * True while the form will let the withdraw be confirmed.
+	 *
+	 * Confirm is disabled rather than hidden until the form has everything it needs, so this is
+	 * what says whether a withdraw could be raised - not whether the button is on the screen.
+	 */
+	public boolean canConfirm() {
+
+		try {
+			return confirmButton.first().isVisible() && confirmButton.first().isEnabled();
+		} catch (Exception notThere) {
+			return false;
+		}
+	}
+
+	/** What the wallet held when it was chosen, in the form's own words. */
+	public String balanceOfChosenWallet() {
+
+		return chosenBalance;
+	}
+
+	/** What the wallet held when it was chosen, as a number. */
+	public double balanceOfChosenWalletAsANumber() {
+
+		return asANumber(chosenBalance, "the chosen wallet's balance");
+	}
+
+	/** Chooses a payout account this account already holds, without submitting anything. */
+	public void chooseSavedPaymentAccount(String named) {
+
+		selectSavedPaymentAccount(named);
+	}
+
+	/**
+	 * Presses Confirm, gives the PIN if the platform asks for one, and says what it made of it.
+	 *
+	 * Hands back the platform's own words where it refused and "" where it did not. A refusal is
+	 * the expected answer in the negative scenarios, so it is reported rather than thrown - the
+	 * throwing version is what submitWithdraw wants, where a refusal means the withdraw failed.
+	 */
+	public String confirmAndSeeWhatThePlatformSays(String describedAs) {
+
+		try {
+			clickConfirmButton();
+			enterPinIfAsked(describedAs);
+
+		} catch (Exception refused) {
+			return String.valueOf(refused.getMessage()).replaceAll("\s+", " ").trim();
+		}
+
+		return refusalShowing();
+	}
+
+	/** True once the platform has an order to show for what was confirmed. */
+	public boolean anOrderWasRaised() {
+
+		return Wait.until(() -> {
+			try {
+				return orderRaised() || submittedOrderStatus.isVisible();
+			} catch (Exception notYet) {
+				return false;
+			}
+		}, 12);
+	}
+
+	/** What the platform said, if it answered with one of its own dialogs. */
+	public String refusalShowing() {
+
+		return PlatformRefusal.showing(page);
+	}
+
+	/**
 	 * Types a fresh payout account in, rather than choosing one already saved.
 	 *
 	 * The form is asked what it wants at every step. The payment type and name pickers are

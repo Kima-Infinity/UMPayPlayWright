@@ -91,7 +91,14 @@ public class LoginPage {
 		this.forgotPasswordLink = page.locator("xpath=//a[@href='/forgot-password']");
 		this.registerLink = page.locator("xpath=//a[@href='/register']");
 		this.languageButton = page.locator("[id=\'locale.dropdown-icon\']");
-		this.customerServiceButton = page.locator("xpath=//button[contains(@class,'fixed') and contains(@class,'bottom-3')]");
+		// By the picture it carries rather than by where it is pinned. Two buttons are fixed to
+		// the bottom-right corner and both answer to "fixed ... bottom-3": the real bubble, and a
+		// second one that declares z-index 9999 but is nonetheless drawn underneath, because the
+		// first one's image overlaps it. Clicking that second button is intercepted every time,
+		// which is why this scenario reported the chat as never opening while the chat opened
+		// perfectly well for anybody pressing it themselves. HomePage already addresses it this
+		// way, and the two now agree.
+		this.customerServiceButton = page.locator("button:has(img[src*='customer_service'])");
 		this.errorBanner = page.locator("xpath=//div[contains(@class,'border-error-500')]//p[contains(@class,'text-sm')]");
 		this.fieldErrorMessage = page.locator("xpath=//em[contains(@class,'text-error-600')]");
 	}

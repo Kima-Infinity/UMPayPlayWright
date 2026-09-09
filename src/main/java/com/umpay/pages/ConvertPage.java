@@ -429,22 +429,25 @@ public class ConvertPage {
 
 			String shown = sourceBalance.innerText().trim();
 
-			// What follows the Balance label is not always the figure: depending on how the page
-			// has rendered it can be the Max button, and reading that alone reports a wallet with
-			// no balance at all. The line the label sits on always carries the figure somewhere,
-			// so it is worth falling back to.
-			if (!FIRST_NUMBER.matcher(shown).find()) {
+			// Only a figure carrying a currency symbol counts as the balance, here as well as on
+			// the line below. What follows the Balance label is not always the figure: depending
+			// on how the page has rendered it can be the Max button, or the amount box, which
+			// holds a bare "1.00" - and a bare number was previously taken at face value. That is
+			// how "more than the wallet holds" came to enter 2.00 against a wallet holding
+			// HK$8,156.51, and then report the form as at fault for accepting it.
+			Matcher money = MONEY.matcher(shown);
 
-				String line = balanceLine();
-
-				// Only the figure carrying a currency symbol. Taking the first number on the line
-				// picks up the amount being converted, which sits on it in some renders.
-				Matcher money = MONEY.matcher(line);
-
-				return money.find() ? money.group().substring(1) : line;
+			if (money.find()) {
+				return money.group().substring(1);
 			}
 
-			return shown;
+			// Nothing that reads as money beside the label. The line the label sits on always
+			// carries the figure somewhere, so it is worth falling back to.
+			String line = balanceLine();
+
+			Matcher onTheLine = MONEY.matcher(line);
+
+			return onTheLine.find() ? onTheLine.group().substring(1) : line;
 
 		} catch (Exception notThere) {
 			return "";

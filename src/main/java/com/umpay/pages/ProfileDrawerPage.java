@@ -25,6 +25,19 @@ public class ProfileDrawerPage {
 	/** The drawer itself. It is mounted when opened rather than hidden in the page. */
 	private static final String DRAWER = "xpath=//*[@id='profile-sidebar']";
 
+	/** The item in the drawer that carries the referral code. */
+	private static final String REFERRAL_ITEM =
+			DRAWER + "//button[contains(normalize-space(.),'Referral Code')]";
+
+	/**
+	 * The control beside the referral code that copies it.
+	 *
+	 * The item around it is not a control at all - it is drawn with cursor-auto and pressing it
+	 * does nothing - so the copy has to be addressed on its own rather than through the item.
+	 */
+	private static final String COPY_REFERRAL =
+			REFERRAL_ITEM + "//div[contains(@class,'cursor-pointer')]";
+
 	/**
 	 * The top bar's controls, one of which opens the drawer.
 	 *
@@ -209,10 +222,143 @@ public class ProfileDrawerPage {
 		return "";
 	}
 
-	/** The referral code the drawer shows, without the words in front of it. */
+	/**
+	 * The referral code the drawer shows, without the words in front of it.
+	 *
+	 * Read from the item itself if the list of what the drawer offers comes back short. The items
+	 * arrive one at a time and the referral code is fetched rather than drawn with the rest, so a
+	 * list read while the drawer is still filling can be missing the very item being asked for.
+	 */
 	public String referralCode() {
 
-		return says("Referral Code").replace("Referral Code:", "").trim();
+		String said = says("Referral Code");
+
+		if (said.isEmpty()) {
+
+			try {
+				said = page.locator(REFERRAL_ITEM).first().innerText()
+						.replaceAll("\s+", " ").trim();
+			} catch (Exception stillDrawing) {
+				return "";
+			}
+		}
+
+		return said.replace("Referral Code:", "").trim();
+	}
+
+	/**
+	 * True while the drawer offers a way to copy the referral code.
+	 *
+	 * A code shown but not offered for copying would have to be read off the screen and typed out
+	 * again by hand, and a referral code mistyped is somebody else's commission.
+	 */
+	public boolean canCopyTheReferralCode() {
+
+		try {
+			return page.locator(COPY_REFERRAL).count() > 0
+					&& page.locator(COPY_REFERRAL).first().isVisible();
+		} catch (Exception notThere) {
+			return false;
+		}
+	}
+
+	/**
+	 * Copies the referral code, by the control beside it.
+	 *
+	 * The drawer closes as it is pressed, so whatever is wanted from the drawer itself has to be
+	 * read before this is called rather than after.
+	 */
+	public void copyTheReferralCode() {
+
+		allowTheClipboard();
+
+		Locator control = page.locator(COPY_REFERRAL).first();
+
+		try {
+			control.click(new Locator.ClickOptions().setTimeout(8000));
+		} catch (Exception wouldNotTakeIt) {
+
+			try {
+				control.dispatchEvent("click");
+			} catch (Exception norThat) {
+				throw new IllegalStateException("The referral code could not be copied: "
+						+ norThat.getMessage());
+			}
+		}
+
+		Wait.sleep(2500);
+	}
+
+	/**
+	 * What is on the clipboard, or "" while nothing is.
+	 *
+	 * Asked for with a limit of its own. The clipboard is read through a promise that never
+	 * settles at all while the window is not the one in front, so a plain read hangs the run
+	 * rather than failing it - which is what it did here before this was guarded.
+	 */
+	public String whatWasCopied() {
+
+		allowTheClipboard();
+
+		try {
+			Object copied = page.evaluate(
+					"() => Promise.race(["
+					+ " navigator.clipboard.readText().catch(() => ''),"
+					+ " new Promise(answer => setTimeout(() => answer(''), 5000))])");
+
+			return copied == null ? "" : String.valueOf(copied).trim();
+
+		} catch (Exception unreadable) {
+			return "";
+		}
+	}
+
+	/** Lets the run read and write the clipboard, which a browser will not do unasked. */
+	private void allowTheClipboard() {
+
+		try {
+			page.context().grantPermissions(
+					java.util.Arrays.asList("clipboard-read", "clipboard-write"));
+		} catch (Exception theBrowserWouldNot) {
+			// A browser that will not grant it will refuse the read, which is reported there.
+		}
+	}
+
+	/** What the application said back, in the notice it raises for itself. */
+	public String noticeShowing() {
+
+		try {
+			Object said = page.evaluate(
+					"() => Array.from(document.querySelectorAll('[class*=Toast],[class*=toast]'))"
+					+ ".map(e => (e.innerText || '').replace(/\s+/g, ' ').trim())"
+					+ ".filter(s => s).filter((s, i, a) => a.indexOf(s) === i).join(' | ')");
+
+			return said == null ? "" : String.valueOf(said).trim();
+
+		} catch (Exception unreadable) {
+			return "";
+		}
+	}
+
+	/** Closes the drawer, so that it can be opened again and read a second time. */
+	public void close() {
+
+		try {
+			page.keyboard().press("Escape");
+			Wait.sleep(1000);
+		} catch (Exception itWouldNot) {
+			// A drawer that will not take Escape is closed by opening something else.
+		}
+
+		if (isShowing()) {
+
+			try {
+				page.mouse().click(5, 5);
+				Wait.sleep(1000);
+			} catch (Exception norThat) {
+				// Left open; opening it again is harmless.
+			}
+		}
 	}
 
 	/** Whether the drawer reports the account's documents as verified. */

@@ -28,6 +28,9 @@ public class ProfileStepDefs {
 
     private static final int ACCOUNT_STATUS = 5;
 
+    /** The code the drawer was showing when it was copied, kept because copying closes it. */
+    private String codeShown = "";
+
     private ProfileDrawerPage drawerPage;
 
     private ExcelDataProvider excel;
@@ -110,6 +113,104 @@ public class ProfileStepDefs {
 
         BaseClass.logger.pass("The drawer shows referral code " + drawer().referralCode()
                 + ", documents " + drawer().documentVerification());
+    }
+
+    /**
+     * Copies the referral code the drawer is showing.
+     *
+     * The code is read first and kept, because the drawer closes as the copy is pressed and there
+     * would be nothing left on the screen to compare the clipboard against afterwards.
+     */
+    @When("I copy my referral code")
+    public void copyMyReferralCode() {
+
+        assertTrue(drawer().canCopyTheReferralCode(),
+                "The drawer shows the referral code " + drawer().referralCode() + " but offers no"
+                        + " way to copy it, so it would have to be read off the screen and typed"
+                        + " out again by hand - and a referral code mistyped is somebody else's"
+                        + " commission");
+
+        codeShown = drawer().referralCode();
+
+        drawer().copyTheReferralCode();
+
+        BaseClass.logger.pass("Pressed the control that copies the referral code " + codeShown);
+    }
+
+    @Then("the referral code should be on the clipboard")
+    public void theCodeShouldBeOnTheClipboard() {
+
+        assertFalse(codeShown.isEmpty(),
+                "The drawer showed no referral code to copy, so there is nothing this account"
+                        + " could pass on to anybody");
+
+        String copied = drawer().whatWasCopied();
+
+        assertFalse(copied.isEmpty(),
+                "Nothing reached the clipboard, so anybody sharing their code would paste whatever"
+                        + " happened to be there before. The drawer showed " + codeShown);
+
+        assertEquals(copied, codeShown,
+                "What was copied is not the code the drawer shows, so anybody passing it on would"
+                        + " be handing out the wrong code");
+
+        System.out.println("The clipboard holds " + copied + ", which is the code shown");
+
+        BaseClass.logger.pass("Copying put " + copied + " on the clipboard, which is the code the"
+                + " drawer shows");
+    }
+
+    /**
+     * The application says the code was copied.
+     *
+     * Copying leaves nothing on the screen to see - the clipboard is somewhere else - so a notice
+     * is the only way somebody knows the press was heard rather than pressing it again.
+     */
+    @Then("the application should confirm the referral code was copied")
+    public void theApplicationShouldConfirmTheCopy() {
+
+        String said = drawer().noticeShowing();
+
+        assertFalse(said.isEmpty(),
+                "Nothing was said back, so there is no way to tell the code was copied from the"
+                        + " press having done nothing at all");
+
+        assertTrue(said.contains(codeShown),
+                "The application said \"" + said + "\", which does not name the code it copied ("
+                        + codeShown + "), so somebody could not tell which code they now hold");
+
+        System.out.println("The application said: " + said);
+
+        BaseClass.logger.pass("The application confirmed the copy: " + said);
+    }
+
+    /**
+     * The code is the same every time it is looked at.
+     *
+     * A referral code that changed between readings would quietly break every link and message
+     * this account had already sent out, and the commission would go nowhere.
+     */
+    @Then("the referral code should read the same each time the drawer is opened")
+    public void theCodeShouldNotChange() {
+
+        String first = drawer().referralCode();
+
+        assertFalse(first.isEmpty(), "The drawer shows no referral code at all");
+
+        drawer().close();
+
+        drawer().open();
+
+        String again = drawer().referralCode();
+
+        assertEquals(again, first,
+                "The drawer showed " + first + " and then " + again + ". A referral code that"
+                        + " changes between readings breaks every link this account has already"
+                        + " sent out");
+
+        System.out.println("The referral code read " + first + " both times");
+
+        BaseClass.logger.pass("The referral code read " + first + " on both openings of the drawer");
     }
 
     @When("I open {string} from the profile drawer")

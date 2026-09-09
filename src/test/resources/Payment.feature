@@ -208,3 +208,81 @@ Feature: Payment
     Examples:
       | excelFileName         | excelSheetName | row |
       | Payment_TestData.xlsx | Sheet1         | 1   |
+
+  # ------------------------------------------------------------------
+  # What the pages will not let happen
+  # ------------------------------------------------------------------
+  #
+  # Nothing below saves an account or removes one either. The same rule holds for the negatives
+  # as for everything above it, and it holds harder: a negative case that got its assertion wrong
+  # would be one that saved an emptied field over an account the withdraw scenarios rely on. So
+  # the change form is read rather than submitted - the browser is asked whether it would accept
+  # what is in the box, which is a question, not a save - and the run leaves the form the way it
+  # found it.
+
+  # A search that matches nothing must say so. A list that has quietly gone empty and one that
+  # says "No data" look identical to somebody who cannot see the difference, and only the second
+  # tells them their own search is what emptied it.
+  @payment @negative @Payment_TC_014
+  Scenario Outline: Searching the providers for something nobody offers says so
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    When I open the Payment page
+    And I start adding a payment account
+    And I choose the way of being paid named in "<row>" of "<excelSheetName>" of "<excelFileName>"
+    And I search the providers for "zzzznosuchprovider"
+    Then no provider should be listed
+    And the list should say there is nothing to show
+
+    Examples:
+      | excelFileName         | excelSheetName | row |
+      | Payment_TestData.xlsx | Sheet1         | 2   |
+
+  # An empty search result that cannot be undone is a dead end: somebody who mistyped would have
+  # to close the panel and start the form again.
+  @payment @negative @Payment_TC_015
+  Scenario Outline: Clearing a search that found nothing brings the providers back
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    When I open the Payment page
+    And I start adding a payment account
+    And I choose the way of being paid named in "<row>" of "<excelSheetName>" of "<excelFileName>"
+    And I search the providers for "zzzznosuchprovider"
+    Then no provider should be listed
+    When I clear the provider search
+    Then the providers should be listed again
+
+    Examples:
+      | excelFileName         | excelSheetName | row |
+      | Payment_TestData.xlsx | Sheet1         | 2   |
+
+  # The details are what a payout is addressed to. An account allowed to lose one is an account
+  # money would be sent into the dark, so the form has to insist on them.
+  @payment @negative @Payment_TC_016
+  Scenario Outline: A saved account cannot be left without the details that identify it
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    When I open the Payment page
+    And I open the first saved account to change it
+    Then the change form should insist on the details that identify the account
+    When I empty the first detail the form insists on
+    Then the emptied detail should not be acceptable
+
+    Examples:
+      | excelFileName         | excelSheetName | row |
+      | Payment_TestData.xlsx | Sheet1         | 1   |
+
+  # Abandoning a change must change nothing. This is the case that guards every other file: a
+  # form that kept an emptied field on the way out would quietly break the withdraw and payout
+  # scenarios that pay into this account.
+  @payment @negative @Payment_TC_017
+  Scenario Outline: Leaving a change form without saving leaves the account as it was
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    When I open the Payment page
+    And I open the first saved account to change it
+    And I remember what the change form holds
+    And I empty the first detail the form insists on
+    And I go back to the payment accounts
+    And I open the first saved account to change it
+    Then the change form should hold what it held before
+
+    Examples:
+      | excelFileName         | excelSheetName | row |
+      | Payment_TestData.xlsx | Sheet1         | 1   |

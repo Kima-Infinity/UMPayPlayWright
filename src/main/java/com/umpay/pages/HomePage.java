@@ -10,7 +10,11 @@ import com.microsoft.playwright.options.AriaRole;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class HomePage {
 
@@ -471,6 +475,132 @@ public class HomePage {
 
 		return Wait.all(walletCards).size();
 
+	}
+
+	/** What the page writes where an amount is hidden. */
+	private static final String HIDDEN = "********";
+
+	/**
+	 * True while the amounts are hidden.
+	 *
+	 * They arrive that way: somebody opening their account in an office does not necessarily
+	 * want what they hold on the screen behind them, so the page shows the shape of the account
+	 * and holds the figures back until they are asked for.
+	 */
+	public boolean amountsAreHidden() {
+
+		return whatTheHomePageSays().contains(HIDDEN);
+	}
+
+	/** True while the home page offers to show the wallets it is holding back. */
+	public boolean offersShowMore() {
+
+		try {
+			return page.getByRole(AriaRole.BUTTON,
+					new Page.GetByRoleOptions().setName("Show More")).count() > 0;
+		} catch (Exception notThere) {
+			return false;
+		}
+	}
+
+	/** Shows the wallets the home page keeps back behind Show More. */
+	public void showMoreWallets() {
+
+		clickWhenReady(page.getByRole(AriaRole.BUTTON,
+				new Page.GetByRoleOptions().setName("Show More")).first(), "Show More");
+
+		Wait.sleep(2500);
+	}
+
+	/** Everything the sidebar offers to open, in the order it lists them. */
+	public List<String> sidebarOptions() {
+
+		List<String> offered = new ArrayList<>();
+
+		try {
+			Object found = page.evaluate(
+					"() => Array.from(document.querySelectorAll('aside a, aside button'))"
+					+ ".map(e => (e.innerText || '').replace(/\\s+/g, ' ').trim())"
+					+ ".filter(t => t && !/^[0-9]+$/.test(t))"
+					+ ".filter((t, i, a) => a.indexOf(t) === i)");
+
+			if (found instanceof List) {
+
+				for (Object one : (List<?>) found) {
+					offered.add(String.valueOf(one));
+				}
+			}
+		} catch (Exception unreadable) {
+			// A sidebar that would not answer offers nothing, as far as this can tell.
+		}
+
+		return offered;
+	}
+
+	/**
+	 * What each wallet says is held against it, by the currency it belongs to.
+	 *
+	 * Read from the cards rather than from the total, because the total is one figure and a
+	 * scenario that failed on it could not say which wallet was at fault.
+	 */
+	public Map<String, String> blockedAmountsShown() {
+
+		Map<String, String> held = new LinkedHashMap<>();
+
+		for (String row : getWalletRows()) {
+
+			Matcher wallet = BLOCKED.matcher(row);
+
+			if (wallet.find()) {
+				held.put(row.split("[\\s|]+")[0], wallet.group(1).trim());
+			}
+		}
+
+		return held;
+	}
+
+	/** What one wallet card says is held against it, as the card writes it. */
+	private static final Pattern BLOCKED = Pattern.compile("Blocked Amount:\\s*(\\S+)");
+
+	/** The currencies of every wallet offering to become the main one. */
+	public List<String> walletsOfferingToBeMain() {
+
+		List<String> offering = new ArrayList<>();
+
+		for (String row : getWalletRows()) {
+
+			if (row.contains("Set as Main")) {
+				offering.add(row.split("[\\s|]+")[0]);
+			}
+		}
+
+		return offering;
+	}
+
+	/** How many wallets claim to be the main one. */
+	public int mainWalletCount() {
+
+		int claiming = 0;
+
+		for (String row : getWalletRows()) {
+
+			if (row.contains("Main Wallet")) {
+				claiming++;
+			}
+		}
+
+		return claiming;
+	}
+
+	/** What the home page says, on one line, for a message that has to name what was seen. */
+	public String whatTheHomePageSays() {
+
+		try {
+			return page.locator("xpath=//*[@id='root']").first()
+					.innerText().replaceAll("\\s+", " ").trim();
+		} catch (Exception unreadable) {
+			return "";
+		}
 	}
 
 	/**

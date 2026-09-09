@@ -389,12 +389,187 @@ public class PaymentPage {
 		return count("input[placeholder='Search']") > 0;
 	}
 
-	/** Searches the providers for something. */
+	/** Searches the providers for something. Passing "" clears the search. */
 	public void searchProviders(String said) {
 
 		page.locator("input[placeholder='Search']").first().fill(said);
 
 		Wait.sleep(2500);
+	}
+
+	/**
+	 * True while the list is saying there is nothing to show.
+	 *
+	 * Worth asking separately from counting the providers: a list that has quietly gone empty and
+	 * one that says "No data" look the same to a count, and only the second tells somebody
+	 * searching that their search is what emptied it.
+	 */
+	public boolean saysThereIsNoData() {
+
+		return askedText().contains("No data");
+	}
+
+	// ------------------------------------------------------------------
+	// Changing one, without saving anything
+	// ------------------------------------------------------------------
+
+	/**
+	 * What the change form asks for, by the label each box carries.
+	 *
+	 * The form names its boxes accountDetails[n][value] and carries the label for each in a
+	 * hidden box beside it, so the two are read together - a map of "Account Name" to what is in
+	 * it is what a scenario can be written against, where accountDetails[0][value] is not.
+	 */
+	public Map<String, String> whatTheChangeFormHolds() {
+
+		Map<String, String> holding = new LinkedHashMap<>();
+
+		// Handed back as a list of "label=value" rather than as JSON. Playwright turns a JS array
+		// into a List of its own, so nothing has to be parsed on this side - the first attempt
+		// did parse JSON here and lost every entry to its own quoting.
+		for (String pair : readBoxes("label ? label.value : box.getAttribute('name')")) {
+
+			int at = pair.indexOf(SEPARATOR);
+
+			if (at > 0) {
+				holding.put(pair.substring(0, at), pair.substring(at + 1));
+			}
+		}
+
+		return holding;
+	}
+
+	/** What a label is joined to its value by, chosen so no label or value could contain it. */
+	private static final char SEPARATOR = (char) 1;
+
+	/**
+	 * Every box the change form holds a detail in, described by {@code as}.
+	 *
+	 * The boxes are named accountDetails[n][value] and the label for each sits in a box of its
+	 * own beside it, so the index is taken off the name and used to find the label. The regular
+	 * expression matters: written with one backslash too many it matches nothing, and every box
+	 * then comes back called accountDetails[0][value] instead of "Account Name".
+	 */
+	private List<String> readBoxes(String as) {
+
+		List<String> read = new ArrayList<>();
+
+		try {
+			Object found = page.evaluate(
+					"() => Array.from(document.querySelectorAll('input[name^=\"accountDetails\"][name$=\"[value]\"]'))"
+					+ ".map(box => {"
+					+ "   const at = (box.getAttribute('name') || '').match(/\\[(\\d+)\\]/);"
+					+ "   const label = at && document.querySelector("
+					+ "     'input[name=\"accountDetails[' + at[1] + '][label]\"]');"
+					+ "   return {box: box, label: label}; })"
+					+ ".filter(pair => pair.box)"
+					+ ".map(({box, label}) => (" + as + ") + '\\u0001' + box.value)");
+
+			if (found instanceof List) {
+
+				for (Object one : (List<?>) found) {
+					read.add(String.valueOf(one));
+				}
+			}
+		} catch (Exception unreadable) {
+			// A form that would not answer holds nothing, as far as this can tell.
+		}
+
+		return read;
+	}
+
+	/** The labels of the boxes the change form will not do without. */
+	public List<String> whatTheChangeFormInsistsOn() {
+
+		List<String> insisted = new ArrayList<>();
+
+		for (String label : requiredBoxes()) {
+
+			if (!insisted.contains(label)) {
+				insisted.add(label);
+			}
+		}
+
+		return insisted;
+	}
+
+	/** The labels of the boxes the form marks as required. */
+	private List<String> requiredBoxes() {
+
+		List<String> required = new ArrayList<>();
+
+		try {
+			Object found = page.evaluate(
+					"() => Array.from(document.querySelectorAll('input[name^=\"accountDetails\"][name$=\"[value]\"]'))"
+					+ ".filter(box => box.required)"
+					+ ".map(box => {"
+					+ "   const at = (box.getAttribute('name') || '').match(/\\[(\\d+)\\]/);"
+					+ "   const label = at && document.querySelector("
+					+ "     'input[name=\"accountDetails[' + at[1] + '][label]\"]');"
+					+ "   return label ? label.value : box.getAttribute('name'); })");
+
+			if (found instanceof List) {
+
+				for (Object one : (List<?>) found) {
+					required.add(String.valueOf(one));
+				}
+			}
+		} catch (Exception unreadable) {
+			// A form that would not answer insists on nothing, as far as this can tell.
+		}
+
+		return required;
+	}
+
+	/**
+	 * Empties the first box the change form insists on, without saving.
+	 *
+	 * The value is set the way the browser sets it rather than by typing, because the form is
+	 * drawn by a framework that watches its own setter - filling the box any other way leaves the
+	 * form still holding the old value behind the screen.
+	 */
+	public void emptyTheFirstDetail() {
+
+		page.evaluate(
+				"() => { const box = document.querySelector('input[name^=\"accountDetails\"][name$=\"[value]\"]');"
+				+ " if (!box) return;"
+				+ " const setter = Object.getOwnPropertyDescriptor("
+				+ "   window.HTMLInputElement.prototype, 'value').set;"
+				+ " setter.call(box, '');"
+				+ " box.dispatchEvent(new Event('input', {bubbles: true}));"
+				+ " box.dispatchEvent(new Event('change', {bubbles: true})); }");
+
+		Wait.sleep(1500);
+	}
+
+	/** True while the first box the change form insists on is one the browser would accept. */
+	public boolean theFirstDetailIsAcceptable() {
+
+		try {
+			Object verdict = page.evaluate(
+					"() => { const box = document.querySelector('input[name^=\"accountDetails\"][name$=\"[value]\"]');"
+					+ " return box ? box.checkValidity() : true; }");
+
+			return Boolean.parseBoolean(String.valueOf(verdict));
+
+		} catch (Exception unreadable) {
+			return true;
+		}
+	}
+
+	/** What the browser says about the first box, in the form's own wording. */
+	public String whatTheFirstDetailSays() {
+
+		try {
+			Object said = page.evaluate(
+					"() => { const box = document.querySelector('input[name^=\"accountDetails\"][name$=\"[value]\"]');"
+					+ " return box ? box.validationMessage : ''; }");
+
+			return said == null ? "" : String.valueOf(said).trim();
+
+		} catch (Exception unreadable) {
+			return "";
+		}
 	}
 
 	/**
