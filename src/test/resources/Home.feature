@@ -109,16 +109,22 @@ Feature: Home
       | excelFileName      | excelSheetName | row |
       | Home_TestData.xlsx | Sheet1         | 1   |
 
-  # What is held against an account is a quantity of money set aside, not a debt. Written with a
-  # minus in front of it, it reads as though the account is owed that money rather than kept from
-  # spending it, and the total then reads "Total Blocked Amount: HK$ -10,684.58".
-  @home @negative @Home_TC_007
-  Scenario Outline: What is held against a wallet is never shown as a negative amount
+  # What is held against a wallet is written as a deduction - "Blocked Amount: HK$-5970.32" -
+  # and the total follows it, reading "Total Blocked Amount: HK$ -10,684.58". That is the
+  # platform's own convention: money set aside is shown as taken off what the wallet has rather
+  # than as a quantity beside it, on this page and on the wallet page alike.
+  #
+  # This case once read the other way round and asserted that nothing held should ever be
+  # negative, which reported the convention itself as a defect. Held this way, what fails is a
+  # wallet that breaks the convention, since the same figure shown two different ways is the
+  # thing nobody could make sense of.
+  @home @Home_TC_007
+  Scenario Outline: What is held against every wallet is written as a deduction
     Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
     When I am on the home page
     And I reveal the amounts
     And I show more wallets
-    Then no wallet should show what is held against it as a negative amount
+    Then what is held against every wallet should be written as a deduction
 
     Examples:
       | excelFileName      | excelSheetName | row |

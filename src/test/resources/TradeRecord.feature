@@ -190,3 +190,36 @@ Feature: Trade Record
     Examples:
       | excelFileName             | excelSheetName | row |
       | TradeRecord_TestData.xlsx | Sheet1         | 4   |
+
+  # ------------------------------------------------------------------
+  # Keeping a copy of an order
+  # ------------------------------------------------------------------
+  #
+  # Bills and the commission listing both let a record be downloaded and shared, and the trade
+  # record was never asked whether it does. It does - an order carries Download and Share beside
+  # Done - and an order somebody cannot keep a copy of is one they cannot show to a bank, an
+  # employer, or whoever is asking where the money went.
+
+  @traderecord @Trade_Record_TC_012
+  Scenario Outline: An order's receipt can be downloaded
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    When I open the Trade Record page
+    And I open the newest order
+    Then the order should offer to be kept
+    And downloading the order should produce a file
+
+    Examples:
+      | excelFileName             | excelSheetName | row |
+      | TradeRecord_TestData.xlsx | Sheet1         | 4   |
+
+  @traderecord @Trade_Record_TC_013
+  Scenario Outline: An order can be shared
+    Given I log into the UMPay application with valid email credentials using "<row>" of "<excelSheetName>" of "<excelFileName>"
+    When I open the Trade Record page
+    And I open the newest order
+    When I share the order
+    Then the sharing choices should offer a way to copy the order
+
+    Examples:
+      | excelFileName             | excelSheetName | row |
+      | TradeRecord_TestData.xlsx | Sheet1         | 4   |

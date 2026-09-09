@@ -133,3 +133,27 @@ Feature: Deposit
     Examples:
       | excelFileName         | excelSheetName | row |
       | Deposit_TestData.xlsx | sheet1         | 1   |
+
+  # ------------------------------------------------------------------
+  # What the amount box will not take
+  # ------------------------------------------------------------------
+  #
+  # The withdraw form was held to this and the deposit form never was, though both boxes behave
+  # the same way: type=number, worked on as it is typed, so letters, a zero and a negative never
+  # land in it at all. The box is left empty rather than holding something unpayable, which is
+  # why this reads the box back rather than only asking whether it is valid - an amount that was
+  # refused and one that never arrived are the same verdict from two different places.
+
+  @deposit @negative @Deposit_TC_007
+  Scenario Outline: The deposit amount box refuses anything that is not an amount
+    Given I log into the UMPay application with valid email credentials using "1" of "Sheet1" of "Deposit_TestData.xlsx"
+    When I navigate to Deposit page
+    And I choose the "HKD" wallet on the Deposit page
+    And I type "<typed>" at the deposit amount box
+    Then the deposit amount box should be left holding nothing
+
+    Examples: things that are not an amount
+      | typed |
+      | abcd  |
+      | 0     |
+      | -100  |

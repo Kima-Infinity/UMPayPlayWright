@@ -367,6 +367,19 @@ public class ProfileDrawerPage {
 		return says("Document Verification").replace("Document Verification", "").trim();
 	}
 
+	/**
+	 * Steps back to the page before, the way the browser's own back button does.
+	 *
+	 * Used after signing out, where the question is whether the account can be seen again by
+	 * going back to a page that was open while it was still signed in.
+	 */
+	public void goBackInTheBrowser() {
+
+		page.goBack();
+
+		Wait.sleep(4000);
+	}
+
 	/** The address the page is at, for a step that has to say where a function led. */
 	public String getCurrentUrl() {
 

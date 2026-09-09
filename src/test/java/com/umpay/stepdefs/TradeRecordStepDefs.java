@@ -480,4 +480,57 @@ public class TradeRecordStepDefs {
         BaseClass.logger.pass("The trade record is listing again, with "
                 + tradeRecord().entries().size() + " orders");
     }
+
+    @Then("the order should offer to be kept")
+    public void theOrderShouldOfferToBeKept() {
+
+        org.testng.Assert.assertTrue(tradeRecord().orderOffersToBeKept(),
+                "The order offers no way to keep a copy of itself, so somebody asked where their"
+                        + " money went has nothing to show. The page reads: " + tradeRecord().text());
+
+        BaseClass.logger.pass("The order offers to be downloaded and shared");
+    }
+
+    @Then("downloading the order should produce a file")
+    public void downloadingTheOrderShouldProduceAFile() {
+
+        java.nio.file.Path saved;
+
+        try {
+            saved = tradeRecord().downloadOrder(java.nio.file.Paths.get("Downloads"));
+        } catch (Exception nothingCameBack) {
+            throw new AssertionError("Download produced no file at all: "
+                    + nothingCameBack.getMessage());
+        }
+
+        org.testng.Assert.assertTrue(java.nio.file.Files.exists(saved),
+                "Download named a file that is not there: " + saved);
+
+        long size = saved.toFile().length();
+
+        org.testng.Assert.assertTrue(size > 0,
+                "The order downloaded an empty file, which is worse than none: " + saved);
+
+        System.out.println("The order downloaded as " + saved.getFileName() + " (" + size
+                + " bytes)");
+
+        BaseClass.logger.pass("The order downloaded as " + saved.getFileName());
+    }
+
+    @When("I share the order")
+    public void iShareTheOrder() {
+
+        tradeRecord().shareOrder();
+
+        BaseClass.logger.pass("Asked to share the order");
+    }
+
+    @Then("the sharing choices should offer a way to copy the order")
+    public void sharingShouldOfferACopy() {
+
+        org.testng.Assert.assertTrue(tradeRecord().shareOffersACopy(),
+                "Sharing the order offers no way to copy it. The page reads: " + tradeRecord().text());
+
+        BaseClass.logger.pass("Sharing the order offers a way to copy it");
+    }
 }
